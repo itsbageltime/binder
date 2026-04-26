@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Binder</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { background: #0a0a0a; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+header { padding: 16px 20px 8px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+header .date { font-size: 12px; color: #555; }
+.tray { padding: 8px 20px; display: flex; gap: 8px; overflow-x: auto; flex-shrink: 0; min-height: 52px; align-items: center; scrollbar-width: none; }
+.tray::-webkit-scrollbar { display: none; }
+.tray-empty { font-size: 12px; color: #333; }
+.badge { width: 36px; height: 36px; border-radius: 50%; background: #1e1e1e; border: 1.5px solid #333; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; flex-shrink: 0; transition: all 0.2s; }
+.badge:hover { border-color: #666; }
+.badge.starred { border-color: #FFD700; color: #FFD700; }
+.nav { display: flex; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
+.nav-btn { flex: 1; padding: 10px; background: none; border: none; color: #444; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; border-bottom: 2px solid transparent; }
+.nav-btn.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
+.content { flex: 1; overflow: hidden; position: relative; }
+.feed-view { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 8px 16px 16px; }
+.channels { display: flex; gap: 6px; padding: 8px 0; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; width: 100%; max-width: 420px; }
+.channels::-webkit-scrollbar { display: none; }
+.channel-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid #2a2a2a; background: transparent; color: #666; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.2s; flex-shrink: 0; }
+.channel-btn.active { background: #f0f0f0; color: #0a0a0a; border-color: #f0f0f0; font-weight: 600; }
+.channel-progress { font-size: 11px; color: #333; padding: 0 0 8px; width: 100%; max-width: 420px; text-align: right; flex-shrink: 0; }
+.card-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+.card-wrap { width: 100%; max-width: 420px; position: relative; }
+.card { background: #141414; border: 1px solid #222; border-radius: 20px; padding: 24px; cursor: pointer; user-select: none; }
+.card-channel { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; margin-bottom: 12px; }
+.card-insight { font-size: 20px; font-weight: 500; line-height: 1.45; color: #f0f0f0; margin-bottom: 16px; }
+.card-meta { display: flex; align-items: center; justify-content: space-between; }
+.card-source { font-size: 12px; color: #444; }
+.card-btns { display: flex; gap: 8px; }
+.card-btn { background: #1e1e1e; border: 1px solid #2a2a2a; border-radius: 10px; padding: 7px 12px; font-size: 15px; cursor: pointer; transition: all 0.15s; color: #666; }
+.card-btn:hover { background: #2a2a2a; }
+.card-btn.active-like { background: #1a2e1a; border-color: #2d5a2d; color: #4CAF50; }
+.card-btn.active-star { background: #2e2a0a; border-color: #5a4d0a; color: #FFD700; }
+.card-expanded { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #1e1e1e; }
+.card-expanded.open { display: block; overflow-y: auto; max-height: 260px; -webkit-overflow-scrolling: touch; }
+.card.done .card-meta { display: none; }
+.card.done .card-expanded { display: none !important; }
+.card-context { font-size: 13px; color: #888; line-height: 1.65; margin-bottom: 16px; }
+.card-full-title { font-size: 14px; color: #888; line-height: 1.6; margin-bottom: 16px; }
+.journalist-btn { display: flex; align-items: center; gap: 10px; background: #1a1a1a; border: 1px solid #252525; border-radius: 12px; padding: 10px 14px; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; width: 100%; text-align: left; }
+.journalist-btn:hover { border-color: #333; }
+.journalist-avatar { width: 32px; height: 32px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #888; flex-shrink: 0; }
+.journalist-info { flex: 1; }
+.journalist-name { font-size: 13px; font-weight: 500; color: #ccc; }
+.journalist-pub { font-size: 11px; color: #555; margin-top: 2px; }
+.journalist-arrow { color: #333; font-size: 14px; }
+.read-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4a9eff; text-decoration: none; border: 1px solid #1a3a5c; padding: 8px 16px; border-radius: 10px; transition: all 0.2s; }
+.read-link:hover { background: #0d2540; }
+.card-actions { display: flex; justify-content: center; margin-top: 16px; width: 100%; max-width: 420px; }
+.next-btn { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 12px 40px; color: #f0f0f0; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.next-btn:hover { background: #222; border-color: #444; }
+.swipe-label { position: absolute; top: 20px; border-radius: 12px; padding: 8px 14px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+.swipe-save { right: 20px; background: #1a3a1a; border: 2px solid #2d5a2d; color: #4CAF50; }
+.swipe-dismiss { left: 20px; background: #3a1a1a; border: 2px solid #5a2d2d; color: #f44336; }
+.journalist-panel { position: absolute; inset: 0; background: #0a0a0a; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 10; overflow-y: auto; padding: 0; }
+.journalist-panel.open { transform: translateY(0); }
+.panel-inner { max-width: 560px; margin: 0 auto; padding: 24px 20px; }
+.panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.panel-back { background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; padding: 8px 14px; font-size: 13px; color: #888; cursor: pointer; }
+.journalist-profile { display: flex; align-items: center; gap: 14px; background: #141414; border: 1px solid #1e1e1e; border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+.profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: #888; flex-shrink: 0; }
+.profile-info { flex: 1; min-width: 0; }
+.profile-name { font-size: 17px; font-weight: 600; color: #f0f0f0; }
+.profile-pub { font-size: 13px; color: #555; margin-top: 3px; }
+.profile-channel { font-size: 11px; color: #444; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+.follow-btn { background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; flex-shrink: 0; white-space: nowrap; }
+.follow-btn.following { background: #1e1e1e; color: #666; border: 1px solid #2a2a2a; }
+.journalist-bio { font-size: 14px; color: #777; line-height: 1.65; margin-bottom: 28px; }
+.panel-articles-header { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-bottom: 12px; }
+.panel-section { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #333; }
+.panel-sort { display: flex; gap: 6px; }
+.panel-sort-btn { padding: 4px 10px; border-radius: 20px; border: 1px solid #2a2a2a; background: transparent; color: #555; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+.panel-sort-btn.active { background: #1e1e1e; color: #f0f0f0; border-color: #444; }
+.article-item { background: #141414; border: 1px solid #1e1e1e; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.2s; }
+.article-item:hover { border-color: #2a2a2a; }
+.article-item-insight { font-size: 13px; color: #ccc; line-height: 1.55; }
+.article-item-meta { font-size: 11px; color: #444; margin-top: 6px; }
+.panel-single-note { font-size: 12px; color: #2e2e2e; line-height: 1.6; padding: 12px 4px; }
+.view { position: absolute; inset: 0; overflow-y: auto; padding: 16px 20px; display: none; }
+.view.active { display: block; }
+.deck-card { background: #141414; border: 1px solid #222; border-radius: 16px; padding: 18px; margin-bottom: 10px; }
+.deck-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.deck-card-channel { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; }
+.deck-remove { background: none; border: none; color: #333; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.deck-remove:hover { color: #888; }
+.deck-card-insight { font-size: 16px; font-weight: 500; color: #f0f0f0; line-height: 1.4; margin-bottom: 10px; }
+.deck-card-meta { font-size: 12px; color: #444; display: flex; justify-content: space-between; align-items: center; }
+.roster-section { margin-bottom: 24px; }
+.roster-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #333; margin-bottom: 10px; }
+.roster-item { display: flex; align-items: center; gap: 12px; background: #141414; border: 1px solid #1e1e1e; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.roster-avatar { width: 36px; height: 36px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #888; flex-shrink: 0; }
+.roster-info { flex: 1; }
+.roster-name { font-size: 14px; font-weight: 500; color: #ccc; }
+.roster-pub { font-size: 12px; color: #444; margin-top: 2px; }
+.roster-channel { font-size: 10px; color: #333; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+.empty-state { text-align: center; padding: 60px 20px; color: #333; font-size: 14px; line-height: 1.8; }
+.roster-view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+.roster-toggle-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid #2a2a2a; background: transparent; color: #555; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+.roster-toggle-btn.active { background: #1e1e1e; color: #f0f0f0; border-color: #444; }
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1e1e1e; border: 1px solid #333; border-radius: 12px; padding: 12px 20px; font-size: 13px; color: #f0f0f0; display: flex; align-items: center; gap: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 100; white-space: nowrap; }
+.toast.show { opacity: 1; pointer-events: all; }
+.toast-undo { background: none; border: 1px solid #444; border-radius: 8px; padding: 4px 12px; color: #4a9eff; font-size: 12px; cursor: pointer; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+<header>
+  <h1>Binder</h1>
+  <span class="date" id="dateLabel"></span>
+</header>
+<div class="tray" id="tray"><span class="tray-empty">Liked cards appear here</span></div>
+<div class="nav">
+  <button class="nav-btn active" onclick="switchView('feed',this)">Feed</button>
+  <button class="nav-btn" onclick="switchView('deck',this)">Deck</button>
+  <button class="nav-btn" onclick="switchView('journalists',this)">Journalists</button>
+  <button class="nav-btn" onclick="switchView('archive',this)">Archive</button>
+</div>
+<div class="content">
+  <div class="feed-view" id="feedView">
+    <div class="channels" id="channels"></div>
+    <div class="channel-progress" id="channelProgress"></div>
+    <div class="card-area">
+      <div class="card-wrap" id="cardWrap">
+        <div class="swipe-label swipe-save" id="swipeSave">Like</div>
+        <div class="swipe-label swipe-dismiss" id="swipeDismiss">Skip</div>
+        <div class="card" id="mainCard">
+          <div class="card-channel" id="cardChannel"></div>
+          <div class="card-insight" id="cardInsight">Loading...</div>
+          <div class="card-meta">
+            <span class="card-source" id="cardSource"></span>
+            <div class="card-btns">
+              <button class="card-btn" id="likeBtn" onclick="likeCard(event)">👍</button>
+              <button class="card-btn" id="starBtn" onclick="starCard(event)">⭐</button>
+            </div>
+          </div>
+          <div class="card-expanded" id="cardExpanded">
+            <div class="card-full-title" id="cardTitle"></div>
+            <div class="card-context" id="cardContext"></div>
+            <button class="journalist-btn" onclick="openJournalist(event)">
+              <div class="journalist-avatar" id="journalistAvatar"></div>
+              <div class="journalist-info">
+                <div class="journalist-name" id="journalistName"></div>
+                <div class="journalist-pub" id="journalistPub"></div>
+              </div>
+              <span class="journalist-arrow">›</span>
+            </button>
+            <a class="read-link" id="readLink" href="#" target="_blank">Read full article →</a>
+          </div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="next-btn" onclick="nextCard()">Next →</button>
+      </div>
+    </div>
+  </div>
+  <div class="view" id="deckView"><div id="deckContent"></div></div>
+  <div class="view" id="journalistsView">
+    <div class="roster-view-toggle">
+      <button class="roster-toggle-btn active" onclick="toggleRoster('name',this)">By name</button>
+      <button class="roster-toggle-btn" onclick="toggleRoster('channel',this)">By channel</button>
+    </div>
+    <div id="rosterContent"></div>
+  </div>
+  <div class="view" id="archiveView"><div id="archiveContent"></div></div>
+  <div class="journalist-panel" id="journalistPanel">
+    <div class="panel-inner">
+      <div class="panel-header"><button class="panel-back" onclick="closeJournalist()">← Back</button></div>
+      <div class="journalist-profile">
+        <div class="profile-avatar" id="panelAvatar"></div>
+        <div class="profile-info">
+          <div class="profile-name" id="panelName"></div>
+          <div class="profile-pub" id="panelPub"></div>
+          <div class="profile-channel" id="panelChannel"></div>
+        </div>
+        <button class="follow-btn" id="followBtn" onclick="toggleFollow()">Follow</button>
+      </div>
+      <div class="journalist-bio" id="journalistBio"></div>
+      <div class="panel-articles-header">
+        <div class="panel-sort">
+          <button class="panel-sort-btn active" onclick="sortPanelArticles('date',this)">Recent</button>
+          <button class="panel-sort-btn" onclick="sortPanelArticles('channel',this)">Channel</button>
+        </div>
+        <span class="panel-section">In your feed</span>
+      </div>
+      <div id="panelArticles"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"><span id="toastMsg">Card removed</span><button class="toast-undo" onclick="undoRemove()">Undo</button></div>
+<script>
+var SUPABASE_URL='https://nbiwbvqbtyqvuzaklvcx.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaXdidnFidHlxdnV6YWtsdmN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNzA0NTcsImV4cCI6MjA5MjY0NjQ1N30.pooWsM3kVOcYb790LsEh5RQyJyn8g4mI28gsoXweW64';
+var sb=(window.supabase&&SUPABASE_URL!=='YOUR_SUPABASE_URL')
+  ?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+
+var allCards=[],filteredCards=[],currentIndex=0,activeChannel='all';
+var liked=new Set(),savedCards=[],starredUrl=null;
+var followedJournalists={},currentJournalist=null,rosterView='name',cardExpanded=false;
+var panelRelated=[],panelSort='date';
+var startX=0,startY=0,isDragging=false,swipeLocked=false,isScrollingExpanded=false;
+var lastRemoved=null,toastTimer=null;
+
+document.getElementById('dateLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+function normalizeCard(c){
+  return {
+    channel:c.channel||'',insight:c.insight||'',context:c.context||'',
+    score:c.score||0,title:c.title||'',source:c.source||'',author:c.author||'',
+    authorBio:c.author_bio||c.authorBio||'',pubDate:c.pub_date||c.pubDate||'',url:c.url||'',
+    archiveOnly:c.archive_only||false,
+  };
+}
+
+async function loadFollows(){
+  if(!sb)return;
+  try{
+    var res=await sb.from('followed_journalists').select('name,publication');
+    if(!res.error&&res.data){
+      res.data.forEach(function(j){
+        var key=j.name+'|'+j.publication;
+        if(!followedJournalists[key])followedJournalists[key]={name:j.name,pub:j.publication,channel:''};
+      });
+    }
+  }catch(e){}
+}
+
+async function loadCards(){
+  await loadFollows();
+  if(sb){
+    try{
+      var today=new Date().toISOString().split('T')[0];
+      var res=await sb.from('cards').select('*').eq('pipeline_run',today).order('score',{ascending:false});
+      if(!res.error&&res.data&&res.data.length>0){
+        allCards=res.data.map(normalizeCard).filter(function(c){return !!c.insight;});
+        buildChannels();filterCards();return;
+      }
+    }catch(e){}
+  }
+  try{
+    var r=await fetch('cards.json');
+    allCards=(await r.json()).map(normalizeCard).filter(function(c){return !!c.insight;});
+    buildChannels();filterCards();
+  }catch(e){
+    document.getElementById('cardInsight').textContent='Run node binder.js first.';
+  }
+}
+
+function buildChannels(){
+  var topics=['all'].concat(Array.from(new Set(allCards.map(function(c){return c.channel;}))));
+  document.getElementById('channels').innerHTML=topics.map(function(t){
+    return '<button class="channel-btn'+(t==='all'?' active':'')+'" onclick="switchChannel(\''+t+'\',this)">'+(t==='all'?'All':t)+'</button>';
+  }).join('');
+}
+
+function switchChannel(topic,el){
+  activeChannel=topic;
+  document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
+  el.classList.add('active');filterCards();
+}
+
+function filterCards(){
+  var pool=activeChannel==='all'
+    ?allCards.slice()
+    :allCards.filter(function(c){return c.channel===activeChannel;});
+
+  // Build liked-source signal set
+  var likedSources=new Set();
+  liked.forEach(function(url){
+    var c=allCards.find(function(x){return x.url===url;});
+    if(c)likedSources.add(c.source);
+  });
+
+  // Personal score = universal quality + personal boosts
+  pool.forEach(function(c){
+    var key=(c.author||'')+'|'+c.source;
+    c._pScore=(c.score||0)
+      +(followedJournalists[key]?3:0)
+      +(likedSources.has(c.source)?2:0);
+  });
+  pool.sort(function(a,b){return b._pScore-a._pScore;});
+
+  // Per-channel view: serve top 10. All-channels view: show full ranked pool.
+  filteredCards=activeChannel==='all'?pool:pool.slice(0,10);
+  currentIndex=0;showCard();
+}
+
+function showCard(){
+  var wrap=document.getElementById('cardWrap');
+  wrap.style.transition='none';wrap.style.transform='';
+  if(currentIndex>=filteredCards.length){
+    var chanName=activeChannel==='all'?'Today\'s feed':activeChannel;
+    document.getElementById('cardInsight').textContent=chanName+' — all done for today.';
+    document.getElementById('cardChannel').textContent='';
+    document.getElementById('channelProgress').textContent='';
+    document.getElementById('mainCard').classList.add('done');
+    document.querySelector('.card-actions').style.display='none';
+    closeJournalist();cardExpanded=false;return;
+  }
+  document.getElementById('mainCard').classList.remove('done');
+  document.querySelector('.card-actions').style.display='';
+  var c=filteredCards[currentIndex];
+  document.getElementById('cardChannel').textContent=c.channel;
+  document.getElementById('cardInsight').textContent=c.insight;
+  var bylineKey=(c.author||'')+'|'+c.source;
+  var isFollowed=!!followedJournalists[bylineKey];
+  var byline=c.author&&c.author!=='Unknown'?c.author+' · '+c.source:c.source;
+  document.getElementById('cardSource').innerHTML=(isFollowed?'<span style="color:#4CAF50">● </span>':'')+byline;
+  document.getElementById('channelProgress').textContent=(currentIndex+1)+' of '+filteredCards.length;
+  document.getElementById('cardTitle').textContent=c.title;
+  document.getElementById('cardContext').textContent=c.context||'';
+  document.getElementById('readLink').href=c.url;
+  var name=c.author||c.source;
+  var init=name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  document.getElementById('journalistAvatar').textContent=init;
+  document.getElementById('journalistName').textContent=c.author||'Unknown';
+  document.getElementById('journalistPub').textContent=c.source;
+  document.getElementById('cardExpanded').classList.remove('open');
+  cardExpanded=false;
+  document.getElementById('likeBtn').className='card-btn'+(liked.has(c.url)?' active-like':'');
+  document.getElementById('starBtn').className='card-btn'+(starredUrl===c.url?' active-star':'');
+}
+
+function updateCardByline(){
+  var c=filteredCards[currentIndex];if(!c)return;
+  var bylineKey=(c.author||'')+'|'+c.source;
+  var isFollowed=!!followedJournalists[bylineKey];
+  var byline=c.author&&c.author!=='Unknown'?c.author+' · '+c.source:c.source;
+  document.getElementById('cardSource').innerHTML=(isFollowed?'<span style="color:#4CAF50">● </span>':'')+byline;
+}
+
+function likeCard(e){
+  e.stopPropagation();
+  var c=filteredCards[currentIndex];if(!c)return;
+  var url=c.url;
+  if(liked.has(url)){
+    liked.delete(url);savedCards=savedCards.filter(function(s){return s.url!==url;});
+  }else{
+    liked.add(url);
+    if(!savedCards.find(function(s){return s.url===url;})){
+      savedCards.push({url:url,card:c,time:Date.now()});
+    }
+  }
+  document.getElementById('likeBtn').className='card-btn'+(liked.has(url)?' active-like':'');
+  updateTray();
+}
+
+function starCard(e){
+  e.stopPropagation();
+  var c=filteredCards[currentIndex];if(!c)return;
+  var url=c.url;
+  if(starredUrl===url){starredUrl=null;document.getElementById('starBtn').className='card-btn';}
+  else{starredUrl=url;document.getElementById('starBtn').className='card-btn active-star';}
+}
+
+function nextCard(){
+  var wrap=document.getElementById('cardWrap');
+  wrap.style.transition='transform 0.25s ease';wrap.style.transform='translateX(-110%)';
+  setTimeout(function(){currentIndex++;showCard();},220);
+}
+
+function updateTray(){
+  var tray=document.getElementById('tray');
+  if(savedCards.length===0){tray.innerHTML='<span class="tray-empty">Liked cards appear here</span>';return;}
+  tray.innerHTML=savedCards.map(function(s){
+    return '<div class="badge" onclick="goToDeck()" title="'+s.card.insight.slice(0,40)+'...">'+s.card.channel.slice(0,2).toUpperCase()+'</div>';
+  }).join('');
+}
+
+function goToDeck(){switchView('deck',document.querySelectorAll('.nav-btn')[1]);renderDeck();}
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');lastRemoved=null;},5000);
+}
+
+function undoRemove(){
+  if(!lastRemoved)return;
+  savedCards.splice(lastRemoved.i,0,lastRemoved.saved);
+  liked.add(lastRemoved.url);
+  updateTray();renderDeck();
+  document.getElementById('toast').classList.remove('show');
+  clearTimeout(toastTimer);lastRemoved=null;
+}
+
+function removeFromDeck(i){
+  var url=savedCards[i].url;
+  lastRemoved={i:i,saved:savedCards[i],url:url};
+  savedCards.splice(i,1);liked.delete(url);
+  updateTray();renderDeck();showToast('Card removed');
+}
+
+document.getElementById('mainCard').addEventListener('click',function(e){
+  if(e.target.closest('.card-btn')||e.target.closest('.journalist-btn')||e.target.closest('.read-link'))return;
+  cardExpanded=!cardExpanded;
+  document.getElementById('cardExpanded').classList.toggle('open',cardExpanded);
+});
+
+var cardEl=document.getElementById('mainCard');
+cardEl.addEventListener('touchstart',function(e){
+  startX=e.touches[0].clientX;startY=e.touches[0].clientY;
+  isDragging=true;swipeLocked=false;
+  isScrollingExpanded=cardExpanded&&!!e.target.closest('.card-expanded');
+},{passive:true});
+cardEl.addEventListener('touchmove',function(e){
+  if(!isDragging||isScrollingExpanded)return;
+  var dx=e.touches[0].clientX-startX;var dy=e.touches[0].clientY-startY;
+  var absDx=Math.abs(dx);var absDy=Math.abs(dy);
+  if(!swipeLocked&&(absDx>10||absDy>10)){swipeLocked=absDx>absDy?'h':'v';}
+  var wrap=document.getElementById('cardWrap');
+  if(swipeLocked!=='h'){wrap.style.transition='none';wrap.style.transform='';return;}
+  e.preventDefault();
+  wrap.style.transition='none';
+  wrap.style.transform='translateX('+(dx*0.4)+'px) rotate('+(dx*0.02)+'deg)';
+  document.getElementById('swipeDismiss').style.opacity=dx<-30?Math.min(1,absDx/80):0;
+  document.getElementById('swipeSave').style.opacity=0;
+},{passive:false});
+cardEl.addEventListener('touchend',function(e){
+  if(!isDragging)return;isDragging=false;
+  document.getElementById('swipeSave').style.opacity=0;document.getElementById('swipeDismiss').style.opacity=0;
+  var wrap=document.getElementById('cardWrap');
+  if(isScrollingExpanded){isScrollingExpanded=false;return;}
+  if(swipeLocked!=='h'){wrap.style.transition='transform 0.2s ease';wrap.style.transform='';return;}
+  var dx=e.changedTouches[0].clientX-startX;
+  if(dx<-80){nextCard();}
+  else{wrap.style.transition='transform 0.2s ease';wrap.style.transform='';}
+});
+
+async function openJournalist(e){
+  e.stopPropagation();
+  var c=filteredCards[currentIndex];if(!c)return;
+  currentJournalist={name:c.author||'Unknown',pub:c.source,channel:c.channel};
+  var init=currentJournalist.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  document.getElementById('panelAvatar').textContent=init;
+  document.getElementById('panelName').textContent=currentJournalist.name;
+  document.getElementById('panelPub').textContent=currentJournalist.pub;
+  document.getElementById('panelChannel').textContent=currentJournalist.channel;
+  document.getElementById('journalistBio').textContent=c.authorBio||'';
+  var key=currentJournalist.name+'|'+currentJournalist.pub;
+  var following=followedJournalists[key];
+  document.getElementById('followBtn').textContent=following?'Following':'Follow';
+  document.getElementById('followBtn').className='follow-btn'+(following?' following':'');
+  panelRelated=allCards.filter(function(a){return a.author===c.author&&a.source===c.source;});
+  panelSort='date';
+  document.querySelectorAll('.panel-sort-btn').forEach(function(b,i){b.classList.toggle('active',i===0);});
+  renderPanelArticles();
+  document.getElementById('journalistPanel').classList.add('open');
+  if(sb&&c.author&&c.author!=='Unknown'){
+    try{
+      var res=await sb.from('cards').select('*').eq('author',c.author).eq('source',c.source).order('pub_date',{ascending:false}).limit(50);
+      if(!res.error&&res.data&&res.data.length>0){panelRelated=res.data.map(normalizeCard);renderPanelArticles();}
+    }catch(ex){}
+  }
+}
+
+function renderPanelArticles(){
+  var sorted=panelRelated.slice();
+  if(panelSort==='date'){sorted.sort(function(a,b){return new Date(b.pubDate||0)-new Date(a.pubDate||0);});}
+  else{sorted.sort(function(a,b){return a.channel.localeCompare(b.channel);});}
+  var feedCards=sorted.filter(function(a){return !a.archiveOnly&&!!a.insight;});
+  var archiveItems=sorted.filter(function(a){return a.archiveOnly||!a.insight;});
+  if(feedCards.length===0&&archiveItems.length===0){
+    document.getElementById('panelArticles').innerHTML='<div class="panel-single-note">No articles from this journalist yet.</div>';
+    return;
+  }
+  var html='';
+  feedCards.forEach(function(a){
+    var dateStr=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    html+='<div class="article-item" onclick="window.open(\''+a.url+'\',\'_blank\')">'+
+      '<div class="article-item-insight">'+a.insight+'</div>'+
+      '<div class="article-item-meta">'+a.source+(dateStr?' · '+dateStr:'')+'</div></div>';
+  });
+  if(feedCards.length===1){html+='<div class="panel-single-note">Only one article in your feed — more will appear as the pipeline runs.</div>';}
+  if(archiveItems.length>0){
+    html+='<div class="panel-section" style="margin:20px 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#333;">Also captured</div>';
+    archiveItems.forEach(function(a){
+      var dateStr=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+      html+='<div class="article-item" onclick="window.open(\''+a.url+'\',\'_blank\')">'+
+        '<div class="article-item-insight" style="color:#555;">'+a.title+'</div>'+
+        '<div class="article-item-meta">'+a.source+(dateStr?' · '+dateStr:'')+'</div></div>';
+    });
+  }
+  document.getElementById('panelArticles').innerHTML=html;
+}
+
+function sortPanelArticles(sort,btn){
+  panelSort=sort;
+  document.querySelectorAll('.panel-sort-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');renderPanelArticles();
+}
+
+function closeJournalist(){document.getElementById('journalistPanel').classList.remove('open');}
+
+function toggleFollow(){
+  if(!currentJournalist)return;
+  var key=currentJournalist.name+'|'+currentJournalist.pub;
+  if(followedJournalists[key]){
+    delete followedJournalists[key];
+    if(sb)sb.from('followed_journalists').delete().eq('name',currentJournalist.name).eq('publication',currentJournalist.pub).then(function(){});
+    document.getElementById('followBtn').textContent='Follow';
+    document.getElementById('followBtn').className='follow-btn';
+  }else{
+    followedJournalists[key]=currentJournalist;
+    if(sb)sb.from('followed_journalists').upsert({name:currentJournalist.name,publication:currentJournalist.pub}).then(function(){});
+    document.getElementById('followBtn').textContent='Following';
+    document.getElementById('followBtn').className='follow-btn following';
+  }
+  updateCardByline();
+  renderRoster();
+}
+
+function switchView(view,btn){
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('feedView').style.display=view==='feed'?'flex':'none';
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
+  if(view!=='feed')document.getElementById(view+'View').classList.add('active');
+  if(view==='deck')renderDeck();
+  if(view==='journalists')renderRoster();
+  if(view==='archive')renderArchive();
+}
+
+function renderDeck(){
+  var el=document.getElementById('deckContent');
+  if(savedCards.length===0){el.innerHTML='<div class="empty-state">No liked cards yet.<br>Hit the like button on any card to save it here.</div>';return;}
+  el.innerHTML=savedCards.map(function(s,i){
+    return '<div class="deck-card">'+
+    '<div class="deck-card-header"><div class="deck-card-channel">'+s.card.channel+'</div>'+
+    '<button class="deck-remove" onclick="removeFromDeck('+i+')">×</button></div>'+
+    '<div class="deck-card-insight">'+s.card.insight+'</div>'+
+    '<div class="deck-card-meta"><span>'+s.card.source+' — '+s.card.author+'</span>'+
+    '<a href="'+s.card.url+'" target="_blank" style="color:#4a9eff;font-size:12px;text-decoration:none;">Read →</a></div></div>';
+  }).join('');
+}
+
+function toggleRoster(view,btn){
+  rosterView=view;
+  document.querySelectorAll('.roster-toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');renderRoster();
+}
+
+function renderRoster(){
+  var el=document.getElementById('rosterContent');
+  var js=Object.values(followedJournalists);
+  if(js.length===0){el.innerHTML='<div class="empty-state">No followed journalists yet.<br>Tap a journalist name on any card to follow them.</div>';return;}
+  if(rosterView==='name'){
+    var sorted=js.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+    el.innerHTML='<div class="roster-section">'+sorted.map(rosterItem).join('')+'</div>';
+  }else{
+    var byChannel={};
+    js.forEach(function(j){if(!byChannel[j.channel])byChannel[j.channel]=[];byChannel[j.channel].push(j);});
+    el.innerHTML=Object.entries(byChannel).map(function(entry){
+      return '<div class="roster-section"><div class="roster-label">'+entry[0]+'</div>'+entry[1].map(rosterItem).join('')+'</div>';
+    }).join('');
+  }
+}
+
+function rosterItem(j){
+  var init=j.name.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  return '<div class="roster-item"><div class="roster-avatar">'+init+'</div>'+
+    '<div class="roster-info"><div class="roster-name">'+j.name+'</div>'+
+    '<div class="roster-pub">'+j.pub+'</div>'+
+    '<div class="roster-channel">'+j.channel+'</div></div></div>';
+}
+
+function renderArchive(){
+  document.getElementById('archiveContent').innerHTML='<div class="empty-state">Your archive will appear here.<br>Liked cards move here at the end of each day.</div>';
+}
+
+loadCards();
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+name: Binder Pipeline
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # midnight ET (5am UTC)
+    - cron: '0 13 * * *'  # 8am ET (1pm UTC)
+    - cron: '0 21 * * *'  # 4pm ET (9pm UTC)
+  workflow_dispatch:       # allows manual trigger from GitHub UI
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run pipeline
+        env:
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node binder.js

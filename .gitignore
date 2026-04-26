@@ -1,0 +1,8 @@
+.vercel
+node_modules
+.env
+cards.json
+review.txt
+.DS_Store
+*.docx
+.claude
