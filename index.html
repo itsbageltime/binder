@@ -233,16 +233,21 @@ async function loadFollows(){
 
 async function loadCards(){
   await loadFollows();
+  console.log('[Binder] sb client:', sb ? 'ready' : 'null (window.supabase=' + typeof window.supabase + ')');
   if(sb){
     try{
       var today=new Date().toISOString().split('T')[0];
+      console.log('[Binder] Fetching cards for', today);
       var res=await sb.from('cards').select('*').eq('pipeline_run',today).order('score',{ascending:false});
+      console.log('[Binder] Supabase response — error:', res.error, '| rows:', res.data&&res.data.length);
       if(!res.error&&res.data&&res.data.length>0){
         allCards=res.data.map(normalizeCard).filter(function(c){return !!c.insight;});
+        console.log('[Binder] Loaded', allCards.length, 'cards from Supabase');
         buildChannels();filterCards();return;
       }
-    }catch(e){}
+    }catch(e){console.error('[Binder] Supabase exception:', e);}
   }
+  console.log('[Binder] Falling back to cards.json');
   try{
     var r=await fetch('cards.json');
     allCards=(await r.json()).map(normalizeCard).filter(function(c){return !!c.insight;});
