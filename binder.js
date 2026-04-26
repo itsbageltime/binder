@@ -289,6 +289,19 @@ function scoreInsight(insight) {
   return score;
 }
 
+async function withConcurrency(limit, tasks) {
+  const results = new Array(tasks.length);
+  let i = 0;
+  async function worker() {
+    while (i < tasks.length) {
+      const idx = i++;
+      results[idx] = await tasks[idx]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  return results;
+}
+
 async function loadFollowedJournalists() {
   if (!supabase) return {};
   try {
@@ -304,79 +317,74 @@ async function loadFollowedJournalists() {
 
 async function run() {
   console.log('Building Binder pipeline...\n');
-  const cards = [];
-  const archiveCards = [];
-  const skipped = [];
-  const output = [];
-  const seenUrls = new Set();
-  const journalistBios = {};
   const followed = await loadFollowedJournalists();
-  let totalAttempts = 0;
 
+  // Phase 1: fetch all feeds and collect articles
+  const queue = [];
+  const seenUrls = new Set();
   for (const channel of channels) {
-    console.log('Channel: ' + channel.name.toUpperCase());
-    output.push('\n=== ' + channel.name.toUpperCase() + ' ===\n');
-
     for (const feedUrl of channel.feeds) {
       const articles = await fetchFeed(feedUrl);
-
       if (articles.length === 0) {
         console.log('  (no articles from ' + feedUrl.split('/')[2] + ')');
         continue;
       }
-
       for (const article of articles) {
         if (!article.title || !article.description) continue;
-        if (seenUrls.has(article.url)) {
-          console.log('  DUPE: ' + article.title.slice(0, 70));
-          continue;
-        }
+        if (seenUrls.has(article.url)) continue;
         seenUrls.add(article.url);
-        totalAttempts++;
-
-        const insight = await extractInsight(article, channel.name);
-
-        if (insight === 'SKIP') {
-          skipped.push({ channel: channel.name, title: article.title });
-          console.log('  SKIP: ' + article.title.slice(0, 70));
-          output.push('SKIP: ' + article.title);
-          if (article.author && followed[article.author + '|' + article.source]) {
-            archiveCards.push({
-              channel: channel.name,
-              title: article.title,
-              source: article.source,
-              author: article.author,
-              pubDate: article.pubDate,
-              url: article.url,
-            });
-          }
-        } else {
-          const context = await getContext(article, insight);
-          const score = scoreInsight(insight);
-          const bioKey = article.author + '|' + article.source;
-          if (article.author && article.author !== 'Unknown' && !journalistBios[bioKey]) {
-            journalistBios[bioKey] = await getBio(article);
-          }
-          cards.push({
-            channel: channel.name,
-            insight,
-            context,
-            score,
-            title: article.title,
-            source: article.source,
-            author: article.author,
-            authorBio: journalistBios[bioKey] || '',
-            pubDate: article.pubDate,
-            url: article.url,
-          });
-          console.log('  CARD [' + score + ']: ' + insight);
-          output.push('CARD [' + score + ']: ' + insight);
-          output.push('      ' + article.source + ' — ' + article.author);
-          output.push('      ' + article.url);
-        }
-        output.push('');
+        queue.push({ article, channelName: channel.name });
       }
     }
+  }
+  console.log('Processing ' + queue.length + ' articles (concurrency: 5)...\n');
+
+  // Bio promise cache — one API call per journalist regardless of concurrency
+  const bioPending = new Map();
+  function fetchBioOnce(article) {
+    if (!article.author || article.author === 'Unknown') return Promise.resolve('');
+    const key = article.author + '|' + article.source;
+    if (!bioPending.has(key)) bioPending.set(key, getBio(article));
+    return bioPending.get(key);
+  }
+
+  const cards = [];
+  const archiveCards = [];
+  const skipped = [];
+  const outputByChannel = {};
+
+  // Phase 2: process articles in parallel with concurrency limit
+  const tasks = queue.map(({ article, channelName }) => async () => {
+    if (!outputByChannel[channelName]) outputByChannel[channelName] = [];
+    const insight = await extractInsight(article, channelName);
+
+    if (insight === 'SKIP') {
+      skipped.push({ channel: channelName, title: article.title });
+      console.log('  SKIP: ' + article.title.slice(0, 70));
+      outputByChannel[channelName].push('SKIP: ' + article.title);
+      if (article.author && followed[article.author + '|' + article.source]) {
+        archiveCards.push({ channel: channelName, title: article.title, source: article.source, author: article.author, pubDate: article.pubDate, url: article.url });
+      }
+      return;
+    }
+
+    const [context, authorBio] = await Promise.all([
+      getContext(article, insight),
+      fetchBioOnce(article),
+    ]);
+    const score = scoreInsight(insight);
+    cards.push({ channel: channelName, insight, context, score, title: article.title, source: article.source, author: article.author, authorBio, pubDate: article.pubDate, url: article.url });
+    console.log('  CARD [' + score + ']: ' + insight);
+    outputByChannel[channelName].push('CARD [' + score + ']: ' + insight, '      ' + article.source + ' — ' + article.author, '      ' + article.url, '');
+  });
+
+  await withConcurrency(5, tasks);
+
+  // Build review output grouped by channel order
+  const output = [];
+  for (const channel of channels) {
+    const lines = outputByChannel[channel.name];
+    if (lines && lines.length) { output.push('\n=== ' + channel.name.toUpperCase() + ' ===\n', ...lines); }
   }
 
   cards.sort((a, b) => b.score - a.score);
@@ -441,7 +449,7 @@ async function run() {
     }
   }
 
-  const passRate = totalAttempts > 0 ? Math.round(cards.length / totalAttempts * 100) : 0;
+  const passRate = queue.length > 0 ? Math.round(cards.length / queue.length * 100) : 0;
   const reviewLines = [
     'BINDER PIPELINE REVIEW',
     new Date().toLocaleString(),
