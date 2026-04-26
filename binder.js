@@ -203,7 +203,8 @@ async function callClaude(params) {
       return await client.messages.create(params);
     } catch (err) {
       if ((err.status === 429 || err.status === 529) && attempt < maxRetries - 1) {
-        const delay = Math.pow(2, attempt) * 12000;
+        const retryAfter = err.headers && (err.headers['retry-after'] || err.headers['x-ratelimit-reset-requests']);
+        const delay = retryAfter ? parseFloat(retryAfter) * 1000 : Math.pow(2, attempt) * 12000;
         console.log('  Rate limited — waiting ' + Math.round(delay / 1000) + 's...');
         await new Promise(r => setTimeout(r, delay));
       } else {
@@ -378,7 +379,7 @@ async function run() {
     outputByChannel[channelName].push('CARD [' + score + ']: ' + insight, '      ' + article.source + ' — ' + article.author, '      ' + article.url, '');
   });
 
-  await withConcurrency(5, tasks);
+  await withConcurrency(2, tasks);
 
   // Build review output grouped by channel order
   const output = [];
