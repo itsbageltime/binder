@@ -379,7 +379,7 @@ async function run() {
     outputByChannel[channelName].push('CARD [' + score + ']: ' + insight, '      ' + article.source + ' — ' + article.author, '      ' + article.url, '');
   });
 
-  await withConcurrency(2, tasks);
+  await withConcurrency(10, tasks);
 
   // Build review output grouped by channel order
   const output = [];
