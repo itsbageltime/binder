@@ -3,9 +3,9 @@ const Parser = require('rss-parser');
 const fs = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 
-const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY || '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';
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nbiwbvqbtyqvuzaklvcx.supabase.co';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaXdidnFidHlxdnV6YWtsdmN4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzA3MDQ1NywiZXhwIjoyMDkyNjQ2NDU3fQ._SHyBn7C8AAKKpJErv8NnIv788KZoAStCI3vW5s8fGQ';
+const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
 const supabase = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
