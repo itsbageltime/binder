@@ -55,7 +55,7 @@ header .date { font-size: 12px; color: #555; }
 .roster-toggle-btn.active { background: #1e1e1e; color: #f0f0f0; border-color: #444; }
 .roster-section { margin-bottom: 24px; }
 .roster-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #333; margin-bottom: 10px; }
-.roster-item { display: flex; align-items: center; gap: 12px; background: #141414; border: 1px solid #1e1e1e; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.roster-item { display: flex; align-items: center; gap: 12px; background: #141414; border: 1px solid #1e1e1e; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
 .roster-avatar { width: 36px; height: 36px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #888; flex-shrink: 0; }
 .roster-info { flex: 1; }
 .roster-name { font-size: 14px; font-weight: 500; color: #ccc; }
@@ -330,26 +330,36 @@ function toggleLike(div,c){
 }
 
 
-async function openJournalist(c){
-  currentJournalist={name:c.author||'Unknown',pub:c.source,channel:c.channel};
-  var init=currentJournalist.name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+function openJournalist(c){
+  openJournalistPanel(c.author||'Unknown',c.source,c.channel,c.authorBio||'');
+}
+
+function openRosterJournalist(name,pub){
+  var card=allCards.find(function(c){return c.author===name&&c.source===pub;});
+  var channel=(followedJournalists[name+'|'+pub]||{}).channel||'';
+  openJournalistPanel(name,pub,channel,card?card.authorBio:'');
+}
+
+async function openJournalistPanel(name,pub,channel,bio){
+  currentJournalist={name:name,pub:pub,channel:channel};
+  var init=name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
   document.getElementById('panelAvatar').textContent=init;
-  document.getElementById('panelName').textContent=currentJournalist.name;
-  document.getElementById('panelPub').textContent=currentJournalist.pub;
-  document.getElementById('panelChannel').textContent=currentJournalist.channel;
-  document.getElementById('journalistBio').textContent=c.authorBio||'';
-  var key=currentJournalist.name+'|'+currentJournalist.pub;
+  document.getElementById('panelName').textContent=name;
+  document.getElementById('panelPub').textContent=pub;
+  document.getElementById('panelChannel').textContent=channel;
+  document.getElementById('journalistBio').textContent=bio||'';
+  var key=name+'|'+pub;
   var following=!!followedJournalists[key];
-  document.getElementById('followBtn').textContent=following?'Following':'Follow';
+  document.getElementById('followBtn').textContent=following?'Unfollow':'Follow';
   document.getElementById('followBtn').className='follow-btn'+(following?' following':'');
-  panelRelated=allCards.filter(function(a){return a.author===c.author&&a.source===c.source;});
+  panelRelated=allCards.filter(function(a){return a.author===name&&a.source===pub;});
   panelSort='date';
   document.querySelectorAll('.panel-sort-btn').forEach(function(b,i){b.classList.toggle('active',i===0);});
   renderPanelArticles();
   document.getElementById('journalistPanel').classList.add('open');
-  if(sb&&c.author&&c.author!=='Unknown'){
+  if(sb&&name&&name!=='Unknown'){
     try{
-      var res=await sb.from('cards').select('*').eq('author',c.author).eq('source',c.source).order('pub_date',{ascending:false}).limit(50);
+      var res=await sb.from('cards').select('*').eq('author',name).eq('source',pub).order('pub_date',{ascending:false}).limit(50);
       if(!res.error&&res.data&&res.data.length>0){panelRelated=res.data.map(normalizeCard);renderPanelArticles();}
     }catch(ex){}
   }
@@ -404,7 +414,7 @@ function toggleFollow(){
   }else{
     followedJournalists[key]=currentJournalist;
     if(sb)sb.from('followed_journalists').upsert({name:currentJournalist.name,publication:currentJournalist.pub}).then(function(){});
-    document.getElementById('followBtn').textContent='Following';
+    document.getElementById('followBtn').textContent='Unfollow';
     document.getElementById('followBtn').className='follow-btn following';
   }
   updateFeedBylines(currentJournalist.name,currentJournalist.pub);
@@ -496,13 +506,15 @@ function renderRoster(){
 
 function rosterItem(j){
   var init=j.name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
-  return '<div class="roster-item">'+
+  return '<div class="roster-item" data-name="'+escHtml(j.name)+'" data-pub="'+escHtml(j.pub)+'">'+
     '<div class="roster-avatar">'+escHtml(init)+'</div>'+
     '<div class="roster-info">'+
       '<div class="roster-name">'+escHtml(j.name)+'</div>'+
       '<div class="roster-pub">'+escHtml(j.pub)+'</div>'+
       '<div class="roster-channel">'+escHtml(j.channel)+'</div>'+
-    '</div></div>';
+    '</div>'+
+    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span>'+
+  '</div>';
 }
 
 function renderArchive(){
@@ -568,6 +580,12 @@ function navigateChannel(dir){
     }
   },{passive:true});
 })();
+
+document.getElementById('rosterContent').addEventListener('click',function(e){
+  var item=e.target.closest('.roster-item[data-name]');
+  if(!item)return;
+  openRosterJournalist(item.dataset.name,item.dataset.pub);
+});
 
 loadCards();
 </script>
