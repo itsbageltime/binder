@@ -23,6 +23,9 @@ header .date { font-size: 12px; color: #555; }
 .feed-content { flex: 1; overflow: hidden; position: relative; }
 .feed-pages { display: flex; height: 100%; width: 300%; will-change: transform; }
 .feed-page { width: 33.333%; height: 100%; overflow-y: auto; padding: 10px 16px 32px; -webkit-overflow-scrolling: touch; flex-shrink: 0; }
+.run-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+.run-divider-line { flex: 1; height: 1px; background: #1a1a1a; }
+.run-divider-label { font-size: 11px; color: #444; white-space: nowrap; flex-shrink: 0; }
 .feed-card { background: #141414; border: 1px solid #1e1e1e; border-radius: 16px; padding: 18px 18px 16px; margin-bottom: 10px; user-select: none; position: relative; will-change: transform; }
 .feed-card-channel { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #333; margin-bottom: 10px; }
 .feed-card-insight { font-size: 17px; font-weight: 500; line-height: 1.5; color: #f0f0f0; margin-bottom: 12px; }
@@ -167,7 +170,8 @@ function normalizeCard(c){
     channel:c.channel||'',insight:c.insight||'',context:c.context||'',
     score:c.score||0,title:c.title||'',source:c.source||'',author:c.author||'',
     authorBio:c.author_bio||c.authorBio||'',pubDate:c.pub_date||c.pubDate||'',
-    url:c.url||'',archiveOnly:c.archive_only||false
+    url:c.url||'',archiveOnly:c.archive_only||false,
+    pipelineRun:c.pipeline_run||'',createdAt:c.created_at||''
   };
 }
 
@@ -190,9 +194,9 @@ async function loadCards(){
   console.log('[Binder] sb client:',sb?'ready':'null (window.supabase='+typeof window.supabase+')');
   if(sb){
     try{
-      var today=new Date().toISOString().split('T')[0];
-      console.log('[Binder] Fetching cards for',today);
-      var res=await sb.from('cards').select('*').eq('pipeline_run',today).order('score',{ascending:false});
+      var sevenDaysAgo=new Date(Date.now()-7*24*3600*1000).toISOString().split('T')[0];
+      console.log('[Binder] Fetching cards since',sevenDaysAgo);
+      var res=await sb.from('cards').select('*').gte('pipeline_run',sevenDaysAgo).order('pipeline_run',{ascending:false}).order('score',{ascending:false}).range(0,2999);
       console.log('[Binder] Supabase response — error:',res.error,'| rows:',res.data&&res.data.length);
       if(!res.error&&res.data&&res.data.length>0){
         allCards=res.data.map(normalizeCard).filter(function(c){return!!c.insight;});
@@ -229,6 +233,23 @@ function switchChannel(topic,el){
   renderFeed();
 }
 
+function formatRunLabel(runDate,createdAt){
+  var today=new Date().toISOString().split('T')[0];
+  var yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  var timeStr='';
+  if(createdAt){
+    var d=new Date(createdAt);
+    var h=d.getHours(),m=d.getMinutes();
+    var ampm=h>=12?'pm':'am';
+    h=h%12||12;
+    timeStr=' '+h+':'+(m<10?'0':'')+m+ampm;
+  }
+  if(runDate===today)return'Today'+timeStr;
+  if(runDate===yesterday)return'Yesterday'+timeStr;
+  var d=new Date(runDate+'T12:00:00');
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+timeStr;
+}
+
 function buildPageContent(el,channelName){
   var pool=channelName==='all'
     ?allCards.slice()
@@ -242,11 +263,29 @@ function buildPageContent(el,channelName){
     var key=(c.author||'')+'|'+c.source;
     c._pScore=(c.score||0)+(followedJournalists[key]?3:0)+(likedSources.has(c.source)?2:0);
   });
-  pool.sort(function(a,b){return b._pScore-a._pScore;});
-  if(channelName!=='all')pool=pool.slice(0,10);
+  // Group by pipeline_run, newest first
+  var groups={};
+  pool.forEach(function(c){
+    var run=c.pipelineRun||'unknown';
+    if(!groups[run])groups[run]=[];
+    groups[run].push(c);
+  });
+  var runDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a);});
   el.innerHTML='';
-  if(pool.length===0){el.innerHTML='<div class="empty-state">No cards yet.</div>';return;}
-  pool.forEach(function(c){el.appendChild(createCardEl(c));});
+  if(runDates.length===0){el.innerHTML='<div class="empty-state">No cards yet.</div>';return;}
+  runDates.forEach(function(runDate){
+    var batch=groups[runDate];
+    batch.sort(function(a,b){return b._pScore-a._pScore;});
+    // Use earliest createdAt in batch for the run timestamp
+    var earliest=batch.reduce(function(min,c){return(!min||c.createdAt&&c.createdAt<min)?c.createdAt:min;},'');
+    var divider=document.createElement('div');
+    divider.className='run-divider';
+    divider.innerHTML='<div class="run-divider-line"></div>'+
+      '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,earliest))+'</span>'+
+      '<div class="run-divider-line"></div>';
+    el.appendChild(divider);
+    batch.forEach(function(c){el.appendChild(createCardEl(c));});
+  });
 }
 
 function renderFeed(){
@@ -587,8 +626,8 @@ var timerLoading=false;
 function getNextRunMs(){
   var etDate=new Date(Date.now()-(4*3600*1000));
   var cur=etDate.getUTCHours()*3600+etDate.getUTCMinutes()*60+etDate.getUTCSeconds();
-  var next=[0,8*3600,16*3600].find(function(t){return t>cur;});
-  return((next!==undefined?next:24*3600)-cur)*1000;
+  var next=[6*3600,16*3600].find(function(t){return t>cur;});
+  return((next!==undefined?next:30*3600)-cur)*1000;
 }
 function updateTimer(){
   if(timerLoading)return;

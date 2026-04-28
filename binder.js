@@ -475,6 +475,12 @@ async function run() {
         console.log('Archived ' + archiveCards.length + ' followed journalist articles.');
       }
     }
+
+    // Delete cards older than 7 days
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().split('T')[0];
+    const { error: delErr } = await supabase.from('cards').delete().lt('pipeline_run', cutoff);
+    if (delErr) console.error('Cleanup error:', delErr.message);
+    else console.log('Cleaned up cards older than ' + cutoff + '.');
   }
 
   const passRate = queue.length > 0 ? Math.round(cards.length / queue.length * 100) : 0;
