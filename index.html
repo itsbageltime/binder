@@ -238,9 +238,8 @@ function formatRunLabel(runDate,createdAt){
   var yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
   var timeStr='';
   if(createdAt){
-    // Convert UTC timestamp to ET (America/New_York handles DST automatically)
     var d=new Date(createdAt);
-    var etStr=d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
+    var etStr=d.toLocaleString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
     timeStr=' '+etStr.toLowerCase().replace(' ','');
   }
   if(runDate===today)return'Today '+timeStr;
