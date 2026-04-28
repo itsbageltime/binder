@@ -502,6 +502,7 @@ async function run() {
   console.log('Pass rate: ' + passRate + '%');
   console.log('\nOpen review.txt to review every card.');
   console.log('Cards saved to cards.json for the UI.');
+  process.exit(0);
 }
 
 run().catch(err => { console.error('Pipeline error:', err); process.exit(1); });
