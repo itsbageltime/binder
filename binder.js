@@ -303,6 +303,30 @@ async function withConcurrency(limit, tasks) {
   return results;
 }
 
+async function loadSeenUrls() {
+  if (!supabase) return new Set();
+  try {
+    const { data, error } = await supabase.from('seen_urls').select('url').range(0, 99999);
+    if (error) { console.warn('Could not load seen_urls:', error.message); return new Set(); }
+    return new Set((data || []).map(r => r.url));
+  } catch(e) {
+    return new Set();
+  }
+}
+
+async function markUrlsSeen(urls) {
+  if (!supabase || urls.length === 0) return;
+  try {
+    const { error } = await supabase.from('seen_urls').upsert(
+      urls.map(url => ({ url })),
+      { onConflict: 'url', ignoreDuplicates: true }
+    );
+    if (error) console.warn('Could not write seen_urls:', error.message);
+  } catch(e) {
+    console.warn('Could not write seen_urls:', e.message);
+  }
+}
+
 async function loadFollowedJournalists() {
   if (!supabase) return {};
   try {
@@ -319,10 +343,11 @@ async function loadFollowedJournalists() {
 async function run() {
   console.log('Building Binder pipeline...\n');
   const followed = await loadFollowedJournalists();
+  const seenUrls = await loadSeenUrls();
+  console.log('Cross-run dedup: ' + seenUrls.size + ' URLs already seen.\n');
 
   // Phase 1: fetch all feeds and collect articles
   const queue = [];
-  const seenUrls = new Set();
   for (const channel of channels) {
     for (const feedUrl of channel.feeds) {
       const articles = await fetchFeed(feedUrl);
@@ -380,6 +405,8 @@ async function run() {
   });
 
   await withConcurrency(10, tasks);
+  await markUrlsSeen(queue.map(({ article }) => article.url));
+  console.log('Marked ' + queue.length + ' URLs as seen.');
 
   // Build review output grouped by channel order
   const output = [];
