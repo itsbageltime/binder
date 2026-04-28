@@ -238,16 +238,25 @@ function formatRunLabel(runDate,createdAt){
   var yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
   var timeStr='';
   if(createdAt){
+    // Convert UTC timestamp to ET (America/New_York handles DST automatically)
     var d=new Date(createdAt);
-    var h=d.getHours(),m=d.getMinutes();
-    var ampm=h>=12?'pm':'am';
-    h=h%12||12;
-    timeStr=' '+h+':'+(m<10?'0':'')+m+ampm;
+    var etStr=d.toLocaleString('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',hour12:true});
+    timeStr=' '+etStr.toLowerCase().replace(' ','');
   }
-  if(runDate===today)return'Today'+timeStr;
-  if(runDate===yesterday)return'Yesterday'+timeStr;
+  if(runDate===today)return'Today '+timeStr;
+  if(runDate===yesterday)return'Yesterday '+timeStr;
   var d=new Date(runDate+'T12:00:00');
-  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+timeStr;
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' '+timeStr;
+}
+
+// Precompute earliest createdAt per pipeline_run across ALL cards (not per-channel batch)
+function buildRunTimestamps(){
+  var map={};
+  allCards.forEach(function(c){
+    var run=c.pipelineRun||'unknown';
+    if(!map[run]||c.createdAt&&c.createdAt<map[run])map[run]=c.createdAt||'';
+  });
+  return map;
 }
 
 function buildPageContent(el,channelName){
@@ -263,6 +272,7 @@ function buildPageContent(el,channelName){
     var key=(c.author||'')+'|'+c.source;
     c._pScore=(c.score||0)+(followedJournalists[key]?3:0)+(likedSources.has(c.source)?2:0);
   });
+  var runTimestamps=buildRunTimestamps();
   // Group by pipeline_run, newest first
   var groups={};
   pool.forEach(function(c){
@@ -276,12 +286,10 @@ function buildPageContent(el,channelName){
   runDates.forEach(function(runDate){
     var batch=groups[runDate];
     batch.sort(function(a,b){return b._pScore-a._pScore;});
-    // Use earliest createdAt in batch for the run timestamp
-    var earliest=batch.reduce(function(min,c){return(!min||c.createdAt&&c.createdAt<min)?c.createdAt:min;},'');
     var divider=document.createElement('div');
     divider.className='run-divider';
     divider.innerHTML='<div class="run-divider-line"></div>'+
-      '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,earliest))+'</span>'+
+      '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,runTimestamps[runDate]||''))+'</span>'+
       '<div class="run-divider-line"></div>';
     el.appendChild(divider);
     batch.forEach(function(c){el.appendChild(createCardEl(c));});
