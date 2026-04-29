@@ -21,8 +21,11 @@ header .date { font-size: 12px; color: #555; }
 .channel-btn.active { background: #f0f0f0; color: #0a0a0a; border-color: #f0f0f0; font-weight: 600; }
 .refresh-timer { font-size: 11px; color: #555; padding: 4px 16px 2px; flex-shrink: 0; }
 .feed-content { flex: 1; overflow: hidden; position: relative; }
-.feed-pages { display: flex; height: 100%; width: 300%; will-change: transform; }
-.feed-page { width: 33.333%; height: 100%; overflow-y: auto; padding: 10px 16px 32px; -webkit-overflow-scrolling: touch; flex-shrink: 0; }
+.feed-page { position: absolute; inset: 0; overflow-y: auto; padding: 10px 16px 32px; -webkit-overflow-scrolling: touch; }
+@keyframes slideFromRight { from { opacity:0; transform:translateX(28px); } to { opacity:1; transform:translateX(0); } }
+@keyframes slideFromLeft  { from { opacity:0; transform:translateX(-28px); } to { opacity:1; transform:translateX(0); } }
+.feed-page.slide-from-right { animation: slideFromRight 0.22s ease-out; }
+.feed-page.slide-from-left  { animation: slideFromLeft  0.22s ease-out; }
 .run-divider { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
 .run-divider-line { flex: 1; height: 1px; background: #1a1a1a; }
 .run-divider-label { font-size: 11px; color: #444; white-space: nowrap; flex-shrink: 0; }
@@ -112,11 +115,7 @@ header .date { font-size: 12px; color: #555; }
     <div class="channels" id="channels"></div>
     <div class="refresh-timer" id="refreshTimer"></div>
     <div class="feed-content" id="feedContent">
-      <div class="feed-pages" id="feedPages">
-        <div class="feed-page" id="pagePrev"></div>
-        <div class="feed-page" id="pageCurrent"></div>
-        <div class="feed-page" id="pageNext"></div>
-      </div>
+      <div class="feed-page" id="pageCurrent"></div>
     </div>
   </div>
   <div class="view" id="deckView"><div id="deckContent"></div></div>
@@ -327,19 +326,7 @@ function buildPageContent(el,channelName){
 }
 
 function renderFeed(){
-  var channels=getChannelList();
-  var idx=Math.max(0,channels.indexOf(activeChannel));
-  buildPageContent(document.getElementById('pagePrev'),channels[(idx-1+channels.length)%channels.length]);
   buildPageContent(document.getElementById('pageCurrent'),activeChannel);
-  buildPageContent(document.getElementById('pageNext'),channels[(idx+1)%channels.length]);
-  resetPages();
-}
-
-function resetPages(){
-  var pagesEl=document.getElementById('feedPages');
-  var W=document.getElementById('feedContent').offsetWidth;
-  pagesEl.style.transition='none';
-  pagesEl.style.transform='translateX('+(-W)+'px)';
 }
 
 function buildBylineHtml(c){
@@ -729,58 +716,50 @@ function navigateChannel(dir){
     btns[nextIdx].classList.add('active');
     btns[nextIdx].scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
   }
-  renderFeed();
+  var page=document.getElementById('pageCurrent');
+  page.classList.remove('slide-from-right','slide-from-left');
+  buildPageContent(page,activeChannel);
+  // requestAnimationFrame lets the browser apply the class-removal before re-adding
+  requestAnimationFrame(function(){
+    page.classList.add(dir>0?'slide-from-right':'slide-from-left');
+  });
 }
 
 (function(){
-  var startX=0,startY=0,startTime=0,lock=null,animating=false,W=0;
+  var startX=0,startY=0,startTime=0,lock=null;
   var content=document.getElementById('feedContent');
-  var pages=document.getElementById('feedPages');
-
-  function settle(x,anim){
-    pages.style.transition=anim?'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)':'none';
-    pages.style.transform='translateX('+x+'px)';
-  }
 
   content.addEventListener('touchstart',function(e){
-    if(animating)return;
-    startX=e.touches[0].clientX;startY=e.touches[0].clientY;
-    startTime=Date.now();lock=null;
-    W=content.offsetWidth;  // cache once — never read offsetWidth in touchmove
-    pages.style.transition='none';
+    startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
+    startTime=Date.now();
+    lock=null;
   },{passive:true});
 
   content.addEventListener('touchmove',function(e){
-    if(animating||!W)return;
+    if(lock)return;
     var dx=e.touches[0].clientX-startX;
     var dy=e.touches[0].clientY-startY;
-    if(!lock&&(Math.abs(dx)>8||Math.abs(dy)>8)){lock=Math.abs(dx)>Math.abs(dy)?'h':'v';}
-    if(lock!=='h')return;
-    e.preventDefault();
-    pages.style.transform='translateX('+(-W+dx)+'px)';  // transform only, no reflow
+    if(Math.abs(dx)>8||Math.abs(dy)>8){
+      lock=Math.abs(dx)>Math.abs(dy)?'h':'v';
+    }
+    if(lock==='h')e.preventDefault();
   },{passive:false});
 
   content.addEventListener('touchend',function(e){
-    if(animating||lock!=='h')return;
+    if(lock!=='h')return;
     var dx=e.changedTouches[0].clientX-startX;
     var elapsed=Date.now()-startTime;
-    var velocity=elapsed>0?dx/elapsed:0;
-    var isFlick=Math.abs(velocity)>0.3;
-    if(dx<-(W*0.3)||(dx<-20&&isFlick)){
-      animating=true;settle(-W*2,true);
-      setTimeout(function(){navigateChannel(1);animating=false;},320);
-    }else if(dx>(W*0.3)||(dx>20&&isFlick)){
-      animating=true;settle(0,true);
-      setTimeout(function(){navigateChannel(-1);animating=false;},320);
-    }else{
-      settle(-W,true);
+    var velocity=elapsed>0?Math.abs(dx)/elapsed:0;
+    var W=content.offsetWidth;
+    if(dx<-(W*0.28)||(dx<-20&&velocity>0.3)){
+      navigateChannel(1);
+    }else if(dx>(W*0.28)||(dx>20&&velocity>0.3)){
+      navigateChannel(-1);
     }
   },{passive:true});
 
-  content.addEventListener('touchcancel',function(){
-    lock=null;
-    if(!animating&&W)settle(-W,false);
-  },{passive:true});
+  content.addEventListener('touchcancel',function(){lock=null;},{passive:true});
 })();
 
 var timerLoading=false;
