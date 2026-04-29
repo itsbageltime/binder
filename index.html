@@ -66,6 +66,10 @@ header .date { font-size: 12px; color: #555; }
 .roster-pub { font-size: 12px; color: #444; margin-top: 2px; }
 .roster-channel { font-size: 10px; color: #333; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 .empty-state { text-align: center; padding: 60px 20px; color: #333; font-size: 14px; line-height: 1.8; }
+.entity-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+.entity-btns .journalist-btn { flex: 1; width: auto; margin-bottom: 0; }
+.voices-section-header { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #555; margin: 24px 0 10px; }
+.voices-section-header:first-child { margin-top: 0; }
 .journalist-panel { position: absolute; inset: 0; background: #0a0a0a; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 10; overflow-y: auto; }
 .journalist-panel.open { transform: translateY(0); }
 .panel-inner { max-width: 560px; margin: 0 auto; padding: 24px 20px; }
@@ -100,7 +104,7 @@ header .date { font-size: 12px; color: #555; }
 <div class="nav">
   <button class="nav-btn active" onclick="switchView('feed',this)">Feed</button>
   <button class="nav-btn" onclick="switchView('deck',this)">Deck</button>
-  <button class="nav-btn" onclick="switchView('journalists',this)">Journalists</button>
+  <button class="nav-btn" onclick="switchView('voices',this)">Voices</button>
   <button class="nav-btn" onclick="switchView('archive',this)">Archive</button>
 </div>
 <div class="content">
@@ -116,11 +120,7 @@ header .date { font-size: 12px; color: #555; }
     </div>
   </div>
   <div class="view" id="deckView"><div id="deckContent"></div></div>
-  <div class="view" id="journalistsView">
-    <div class="roster-view-toggle">
-      <button class="roster-toggle-btn active" onclick="toggleRoster('name',this)">By name</button>
-      <button class="roster-toggle-btn" onclick="toggleRoster('channel',this)">By channel</button>
-    </div>
+  <div class="view" id="voicesView">
     <div id="rosterContent"></div>
   </div>
   <div class="view" id="archiveView"><div id="archiveContent"></div></div>
@@ -147,6 +147,27 @@ header .date { font-size: 12px; color: #555; }
       <div id="panelArticles"></div>
     </div>
   </div>
+  <div class="journalist-panel" id="publicationPanel">
+    <div class="panel-inner">
+      <div class="panel-header"><button class="panel-back" onclick="closePublication()">← Back</button></div>
+      <div class="journalist-profile">
+        <div class="profile-avatar" id="pubPanelAvatar"></div>
+        <div class="profile-info">
+          <div class="profile-name" id="pubPanelName"></div>
+        </div>
+        <button class="follow-btn" id="pubFollowBtn" onclick="togglePublicationFollow()">Follow</button>
+      </div>
+      <div class="journalist-bio" id="publicationBio"></div>
+      <div class="panel-articles-header">
+        <div class="panel-sort">
+          <button class="panel-sort-btn active" id="pubSortDate" onclick="sortPubPanelArticles('date',this)">Recent</button>
+          <button class="panel-sort-btn" id="pubSortChannel" onclick="sortPubPanelArticles('channel',this)">Channel</button>
+        </div>
+        <span class="panel-section">In your feed</span>
+      </div>
+      <div id="pubPanelArticles"></div>
+    </div>
+  </div>
 </div>
 <script>
 var SUPABASE_URL='https://nbiwbvqbtyqvuzaklvcx.supabase.co';
@@ -156,8 +177,10 @@ var sb=(window.supabase&&SUPABASE_URL!=='YOUR_SUPABASE_URL')
 
 var allCards=[],activeChannel='all';
 var likedUrls=new Set(),savedCards=[];
-var followedJournalists={},currentJournalist=null,rosterView='name';
+var followedJournalists={},currentJournalist=null;
+var followedPublications={},currentPublication=null;
 var panelRelated=[],panelSort='date';
+var pubPanelRelated=[],pubPanelSort='date';
 
 document.getElementById('dateLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
@@ -178,12 +201,19 @@ function normalizeCard(c){
 async function loadFollows(){
   if(!sb)return;
   try{
-    var res=await sb.from('followed_journalists').select('name,publication');
-    if(!res.error&&res.data){
-      res.data.forEach(function(j){
+    var results=await Promise.all([
+      sb.from('followed_journalists').select('name,publication'),
+      sb.from('followed_publications').select('name')
+    ]);
+    var jRes=results[0],pRes=results[1];
+    if(!jRes.error&&jRes.data){
+      jRes.data.forEach(function(j){
         var key=j.name+'|'+j.publication;
         if(!followedJournalists[key])followedJournalists[key]={name:j.name,pub:j.publication,channel:''};
       });
+    }
+    if(!pRes.error&&pRes.data){
+      pRes.data.forEach(function(p){followedPublications[p.name]=true;});
     }
   }catch(e){}
 }
@@ -268,7 +298,7 @@ function buildPageContent(el,channelName){
   });
   pool.forEach(function(c){
     var key=(c.author||'')+'|'+c.source;
-    c._pScore=(c.score||0)+(followedJournalists[key]?3:0)+(likedSources.has(c.source)?2:0);
+    c._pScore=(c.score||0)+(followedJournalists[key]?3:0)+(followedPublications[c.source]?3:0)+(likedSources.has(c.source)?2:0);
   });
   var runTimestamps=buildRunTimestamps();
   // Group by pipeline_run, newest first
@@ -312,16 +342,23 @@ function resetPages(){
   pagesEl.style.transform='translateX('+(-W)+'px)';
 }
 
-function createCardEl(c){
+function buildBylineHtml(c){
   var key=(c.author||'')+'|'+c.source;
-  var isFollowed=!!followedJournalists[key];
-  var authorText=c.author&&c.author!=='Unknown'
-    ?escHtml(c.author)+' · '+escHtml(c.source)
-    :escHtml(c.source);
-  var bylineHtml=(isFollowed?'<span style="color:#4CAF50">● </span>':'')+authorText;
+  var jFollowed=!!followedJournalists[key];
+  var pFollowed=!!followedPublications[c.source];
+  var pubPart=pFollowed?'<span style="color:#4CAF50">'+escHtml(c.source)+'</span>':escHtml(c.source);
+  if(c.author&&c.author!=='Unknown'){
+    var authorPart=jFollowed?'<span style="color:#4CAF50">'+escHtml(c.author)+'</span>':escHtml(c.author);
+    return authorPart+' · '+pubPart;
+  }
+  return pubPart;
+}
+
+function createCardEl(c){
   var isLiked=likedUrls.has(c.url);
-  var name=c.author&&c.author!=='Unknown'?c.author:c.source;
-  var init=name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  var jName=c.author&&c.author!=='Unknown'?c.author:c.source;
+  var jInit=jName.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  var pInit=c.source.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
 
   var div=document.createElement('div');
   div.className='feed-card';
@@ -330,20 +367,29 @@ function createCardEl(c){
     '<div class="feed-card-channel">'+escHtml(c.channel)+'</div>'+
     '<div class="feed-card-insight">'+escHtml(c.insight)+'</div>'+
     '<div class="feed-card-meta">'+
-      '<div class="feed-card-byline">'+bylineHtml+'</div>'+
+      '<div class="feed-card-byline">'+buildBylineHtml(c)+'</div>'+
       '<button class="like-btn'+(isLiked?' liked':'')+'" data-action="like">♡</button>'+
     '</div>'+
     '<div class="feed-card-expanded">'+
       (c.title?'<div class="feed-card-title">'+escHtml(c.title)+'</div>':'')+
       (c.context?'<div class="feed-card-context">'+escHtml(c.context)+'</div>':'')+
-      '<button class="journalist-btn" data-action="journalist">'+
-        '<div class="journalist-avatar">'+escHtml(init)+'</div>'+
-        '<div class="journalist-info">'+
-          '<div class="journalist-name-text">'+escHtml(c.author||'Unknown')+'</div>'+
-          '<div class="journalist-pub-text">'+escHtml(c.source)+'</div>'+
-        '</div>'+
-        '<span class="journalist-arrow">›</span>'+
-      '</button>'+
+      '<div class="entity-btns">'+
+        '<button class="journalist-btn" data-action="journalist">'+
+          '<div class="journalist-avatar">'+escHtml(jInit)+'</div>'+
+          '<div class="journalist-info">'+
+            '<div class="journalist-name-text">'+escHtml(c.author&&c.author!=='Unknown'?c.author:c.source)+'</div>'+
+            (c.author&&c.author!=='Unknown'?'<div class="journalist-pub-text">'+escHtml(c.source)+'</div>':'')+
+          '</div>'+
+          '<span class="journalist-arrow">›</span>'+
+        '</button>'+
+        '<button class="journalist-btn" data-action="publication">'+
+          '<div class="journalist-avatar">'+escHtml(pInit)+'</div>'+
+          '<div class="journalist-info">'+
+            '<div class="journalist-name-text">'+escHtml(c.source)+'</div>'+
+          '</div>'+
+          '<span class="journalist-arrow">›</span>'+
+        '</button>'+
+      '</div>'+
       '<a class="read-link" href="'+escHtml(c.url)+'" target="_blank">Read full article →</a>'+
     '</div>';
 
@@ -354,6 +400,7 @@ function createCardEl(c){
 function attachCardHandlers(div,c){
   div.addEventListener('click',function(e){
     if(e.target.closest('[data-action="journalist"]')){openJournalist(c);return;}
+    if(e.target.closest('[data-action="publication"]')){openPublication(c);return;}
     if(e.target.closest('[data-action="like"]')){toggleLike(div,c);return;}
     if(e.target.closest('.read-link'))return;
     toggleExpand(div);
@@ -403,7 +450,7 @@ async function openJournalistPanel(name,pub,channel,bio){
   document.getElementById('followBtn').className='follow-btn'+(following?' following':'');
   panelRelated=allCards.filter(function(a){return a.author===name&&a.source===pub;});
   panelSort='date';
-  document.querySelectorAll('.panel-sort-btn').forEach(function(b,i){b.classList.toggle('active',i===0);});
+  document.querySelectorAll('#journalistPanel .panel-sort-btn').forEach(function(b,i){b.classList.toggle('active',i===0);});
   renderPanelArticles();
   document.getElementById('journalistPanel').classList.add('open');
   if(sb&&name&&name!=='Unknown'){
@@ -446,11 +493,91 @@ function renderPanelArticles(){
 
 function sortPanelArticles(sort,btn){
   panelSort=sort;
-  document.querySelectorAll('.panel-sort-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#journalistPanel .panel-sort-btn').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');renderPanelArticles();
 }
 
 function closeJournalist(){document.getElementById('journalistPanel').classList.remove('open');}
+
+function openPublication(c){openPublicationPanel(c.source);}
+function openRosterPublication(name){openPublicationPanel(name);}
+
+async function openPublicationPanel(name){
+  currentPublication={name:name};
+  var init=name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  document.getElementById('pubPanelAvatar').textContent=init;
+  document.getElementById('pubPanelName').textContent=name;
+  document.getElementById('publicationBio').textContent='';
+  var following=!!followedPublications[name];
+  document.getElementById('pubFollowBtn').textContent=following?'Unfollow':'Follow';
+  document.getElementById('pubFollowBtn').className='follow-btn'+(following?' following':'');
+  pubPanelRelated=allCards.filter(function(c){return c.source===name&&!c.archiveOnly&&!!c.insight;});
+  pubPanelSort='date';
+  document.getElementById('pubSortDate').classList.add('active');
+  document.getElementById('pubSortChannel').classList.remove('active');
+  renderPubPanelArticles();
+  document.getElementById('publicationPanel').classList.add('open');
+  if(sb){
+    try{
+      var bioRes=await sb.from('publication_bios').select('bio').eq('name',name).maybeSingle();
+      if(!bioRes.error&&bioRes.data&&bioRes.data.bio){
+        document.getElementById('publicationBio').textContent=bioRes.data.bio;
+      }
+    }catch(ex){}
+    try{
+      var artRes=await sb.from('cards').select('*').eq('source',name).order('pub_date',{ascending:false}).limit(100);
+      if(!artRes.error&&artRes.data&&artRes.data.length>0){
+        pubPanelRelated=artRes.data.map(normalizeCard).filter(function(c){return!c.archiveOnly&&!!c.insight;});
+        renderPubPanelArticles();
+      }
+    }catch(ex){}
+  }
+}
+
+function renderPubPanelArticles(){
+  var sorted=pubPanelRelated.slice();
+  if(pubPanelSort==='date'){sorted.sort(function(a,b){return new Date(b.pubDate||0)-new Date(a.pubDate||0);});}
+  else{sorted.sort(function(a,b){return a.channel.localeCompare(b.channel);});}
+  var el=document.getElementById('pubPanelArticles');
+  if(sorted.length===0){el.innerHTML='<div class="panel-single-note">No articles from this publication yet.</div>';return;}
+  var html='';
+  sorted.forEach(function(a){
+    var dateStr=a.pubDate?new Date(a.pubDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}):'';
+    html+='<div class="article-item" onclick="window.open(\''+escHtml(a.url)+'\',\'_blank\')">'+
+      '<div class="article-item-insight">'+escHtml(a.insight)+'</div>'+
+      '<div class="article-item-meta">'+escHtml(a.channel)+(dateStr?' · '+dateStr:'')+(a.author&&a.author!=='Unknown'?' · '+escHtml(a.author):'')+'</div></div>';
+  });
+  if(sorted.length===1){html+='<div class="panel-single-note">Only one article from this publication in your feed — check back as more appear.</div>';}
+  el.innerHTML=html;
+}
+
+function sortPubPanelArticles(sort,btn){
+  pubPanelSort=sort;
+  document.getElementById('pubSortDate').classList.remove('active');
+  document.getElementById('pubSortChannel').classList.remove('active');
+  btn.classList.add('active');
+  renderPubPanelArticles();
+}
+
+function closePublication(){document.getElementById('publicationPanel').classList.remove('open');}
+
+function togglePublicationFollow(){
+  if(!currentPublication)return;
+  var name=currentPublication.name;
+  if(followedPublications[name]){
+    delete followedPublications[name];
+    if(sb)sb.from('followed_publications').delete().eq('name',name).then(function(){});
+    document.getElementById('pubFollowBtn').textContent='Follow';
+    document.getElementById('pubFollowBtn').className='follow-btn';
+  }else{
+    followedPublications[name]=true;
+    if(sb)sb.from('followed_publications').upsert({name:name}).then(function(){});
+    document.getElementById('pubFollowBtn').textContent='Unfollow';
+    document.getElementById('pubFollowBtn').className='follow-btn following';
+  }
+  updateFeedBylinesForPub(name);
+  renderVoices();
+}
 
 function toggleFollow(){
   if(!currentJournalist)return;
@@ -467,20 +594,24 @@ function toggleFollow(){
     document.getElementById('followBtn').className='follow-btn following';
   }
   updateFeedBylines(currentJournalist.name,currentJournalist.pub);
-  renderRoster();
+  renderVoices();
 }
 
-function updateFeedBylines(name,pub){
-  var key=name+'|'+pub;
-  var isFollowed=!!followedJournalists[key];
+function updateFeedBylines(authorName,pub){
   document.querySelectorAll('.feed-card').forEach(function(div){
     var c=allCards.find(function(x){return x.url===div.dataset.url;});
-    if(!c||c.author!==name||c.source!==pub)return;
-    var authorText=c.author&&c.author!=='Unknown'
-      ?escHtml(c.author)+' · '+escHtml(c.source)
-      :escHtml(c.source);
+    if(!c||c.author!==authorName||c.source!==pub)return;
     var el=div.querySelector('.feed-card-byline');
-    if(el)el.innerHTML=(isFollowed?'<span style="color:#4CAF50">● </span>':'')+authorText;
+    if(el)el.innerHTML=buildBylineHtml(c);
+  });
+}
+
+function updateFeedBylinesForPub(pubName){
+  document.querySelectorAll('.feed-card').forEach(function(div){
+    var c=allCards.find(function(x){return x.url===div.dataset.url;});
+    if(!c||c.source!==pubName)return;
+    var el=div.querySelector('.feed-card-byline');
+    if(el)el.innerHTML=buildBylineHtml(c);
   });
 }
 
@@ -491,7 +622,7 @@ function switchView(view,btn){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('active');});
   if(view!=='feed')document.getElementById(view+'View').classList.add('active');
   if(view==='deck')renderDeck();
-  if(view==='journalists')renderRoster();
+  if(view==='voices')renderVoices();
   if(view==='archive')renderArchive();
 }
 
@@ -528,39 +659,44 @@ function removeFromDeck(i){
   renderDeck();
 }
 
-function toggleRoster(view,btn){
-  rosterView=view;
-  document.querySelectorAll('.roster-toggle-btn').forEach(function(b){b.classList.remove('active');});
-  btn.classList.add('active');renderRoster();
-}
-
-function renderRoster(){
+function renderVoices(){
   var el=document.getElementById('rosterContent');
-  var js=Object.values(followedJournalists);
+  var js=Object.values(followedJournalists).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var pubs=Object.keys(followedPublications).sort();
+  var html='';
+  html+='<div class="voices-section-header">Journalists</div>';
   if(js.length===0){
-    el.innerHTML='<div class="empty-state">No followed journalists yet.<br>Tap a journalist name on any card to follow them.</div>';
-    return;
-  }
-  if(rosterView==='name'){
-    var sorted=js.slice().sort(function(a,b){return a.name.localeCompare(b.name);});
-    el.innerHTML='<div class="roster-section">'+sorted.map(rosterItem).join('')+'</div>';
+    html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed journalists yet.</div>';
   }else{
-    var byChannel={};
-    js.forEach(function(j){if(!byChannel[j.channel])byChannel[j.channel]=[];byChannel[j.channel].push(j);});
-    el.innerHTML=Object.entries(byChannel).map(function(entry){
-      return '<div class="roster-section"><div class="roster-label">'+escHtml(entry[0])+'</div>'+entry[1].map(rosterItem).join('')+'</div>';
-    }).join('');
+    html+='<div class="roster-section">'+js.map(journalistRosterItem).join('')+'</div>';
   }
+  html+='<div class="voices-section-header">Publications</div>';
+  if(pubs.length===0){
+    html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed publications yet.</div>';
+  }else{
+    html+='<div class="roster-section">'+pubs.map(pubRosterItem).join('')+'</div>';
+  }
+  el.innerHTML=html;
 }
 
-function rosterItem(j){
+function journalistRosterItem(j){
   var init=j.name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
   return '<div class="roster-item" data-name="'+escHtml(j.name)+'" data-pub="'+escHtml(j.pub)+'">'+
     '<div class="roster-avatar">'+escHtml(init)+'</div>'+
     '<div class="roster-info">'+
       '<div class="roster-name">'+escHtml(j.name)+'</div>'+
       '<div class="roster-pub">'+escHtml(j.pub)+'</div>'+
-      '<div class="roster-channel">'+escHtml(j.channel)+'</div>'+
+    '</div>'+
+    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span>'+
+  '</div>';
+}
+
+function pubRosterItem(name){
+  var init=name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  return '<div class="roster-item" data-pub-name="'+escHtml(name)+'">'+
+    '<div class="roster-avatar">'+escHtml(init)+'</div>'+
+    '<div class="roster-info">'+
+      '<div class="roster-name">'+escHtml(name)+'</div>'+
     '</div>'+
     '<span style="color:#333;font-size:16px;padding-left:8px;">›</span>'+
   '</div>';
@@ -656,9 +792,10 @@ setInterval(updateTimer,1000);
 updateTimer();
 
 document.getElementById('rosterContent').addEventListener('click',function(e){
-  var item=e.target.closest('.roster-item[data-name]');
-  if(!item)return;
-  openRosterJournalist(item.dataset.name,item.dataset.pub);
+  var jItem=e.target.closest('.roster-item[data-name]');
+  if(jItem){openRosterJournalist(jItem.dataset.name,jItem.dataset.pub);return;}
+  var pItem=e.target.closest('.roster-item[data-pub-name]');
+  if(pItem){openRosterPublication(pItem.dataset.pubName);}
 });
 
 loadCards();

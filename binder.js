@@ -317,6 +317,18 @@ Rules:
 
 Write only the context. Nothing else.`;
 
+const PUB_BIO_PROMPT = `Introduce this publication in 2-3 sentences, the way a knowledgeable colleague would to a curious reader.
+
+Publication: NAME
+
+RULES:
+1. Cover what the publication focuses on, who reads it, and what makes its editorial perspective or voice distinctive.
+2. Tone: warm and specific, like a colleague introduction. Not a Wikipedia stub, not a press release.
+3. Never fabricate specifics you can't be confident about. Two honest sentences beat three hollow ones.
+4. Do not reference any specific article.
+
+Write only the bio. Nothing else.`;
+
 async function callClaude(params) {
   const maxRetries = 6;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -397,6 +409,28 @@ async function getBio(article) {
     });
     return message.content[0].text.trim();
   } catch(e) {
+    return '';
+  }
+}
+
+async function getPublicationBio(name) {
+  if (!supabase) return '';
+  try {
+    const { data } = await supabase.from('publication_bios').select('bio').eq('name', name).maybeSingle();
+    if (data && data.bio) return data.bio;
+  } catch(e) {}
+  try {
+    const prompt = PUB_BIO_PROMPT.replace('NAME', name);
+    const message = await callClaude({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 200,
+      messages: [{ role: 'user', content: prompt }]
+    });
+    const bio = message.content[0].text.trim();
+    await supabase.from('publication_bios').upsert({ name, bio }, { onConflict: 'name' });
+    return bio;
+  } catch(e) {
+    console.warn('Could not generate pub bio for', name, ':', e.message);
     return '';
   }
 }
@@ -616,6 +650,20 @@ async function run() {
     ...output
   ];
   fs.writeFileSync('review.txt', reviewLines.join('\n'));
+
+  // Generate publication bios for any new sources seen in this run
+  if (supabase && cards.length > 0) {
+    const uniqueSources = [...new Set(cards.map(c => c.source).filter(Boolean))];
+    const { data: existingBios } = await supabase.from('publication_bios').select('name').in('name', uniqueSources);
+    const hasBio = new Set((existingBios || []).map(r => r.name));
+    const missing = uniqueSources.filter(s => !hasBio.has(s));
+    if (missing.length > 0) {
+      console.log('Generating publication bios for ' + missing.length + ' new sources...');
+      for (const source of missing) {
+        await getPublicationBio(source);
+      }
+    }
+  }
 
   console.log('\n--- SUMMARY ---');
   console.log('Cards: ' + cards.length);
