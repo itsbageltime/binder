@@ -166,8 +166,9 @@ header .date { font-size: 12px; color: #555; }
 <!-- Channel select overlay -->
 <div class="channel-select-overlay" id="channelSelectOverlay">
   <div class="channel-select-header">
-    <div class="channel-select-title">What interests you?</div>
-    <div class="channel-select-sub">Select at least 3 channels to get started.</div>
+    <button class="panel-back" id="channelSelectBack" style="display:none;margin-bottom:16px;" onclick="closeChannelSettings()">← Back</button>
+    <div class="channel-select-title" id="channelSelectTitle">What interests you?</div>
+    <div class="channel-select-sub" id="channelSelectSub">Select at least 3 channels to get started.</div>
     <div class="channel-select-count" id="channelSelectCount"></div>
   </div>
   <div class="channel-select-body">
@@ -191,6 +192,7 @@ header .date { font-size: 12px; color: #555; }
   <span class="date" id="dateLabel"></span>
   <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   <div class="signout-popover" id="signoutPopover">
+    <button onclick="showSettingsChannels()">Channels</button>
     <button onclick="handleSignOut()">Sign out</button>
   </div>
 </header>
@@ -418,20 +420,51 @@ async function startApp(){
 }
 
 // ─── Channel selection screen ──────────────────────────────────────────────────
-function showChannelSelectScreen(){
+var channelSelectMode='signup'; // 'signup' | 'settings'
+
+function showChannelSelectScreen(mode){
+  channelSelectMode=mode||'signup';
   selectedChannelTiles=new Set();customChannels=[];
+
+  // In settings mode, pre-populate from current profile
+  var standardNames=CHANNEL_DEFS.map(function(c){return c.name;});
+  if(channelSelectMode==='settings'&&userProfile&&userProfile.channels){
+    userProfile.channels.forEach(function(ch){
+      if(standardNames.indexOf(ch)!==-1)selectedChannelTiles.add(ch);
+      else customChannels.push(ch);
+    });
+  }
+
   var grid=document.getElementById('channelGrid');
-  grid.innerHTML=CHANNEL_DEFS.map(function(ch,i){
-    return '<div class="channel-tile" data-channel="'+escHtml(ch.name)+'" onclick="toggleChannelTile(this,\''+escHtml(ch.name)+'\')">'+
+  grid.innerHTML=CHANNEL_DEFS.map(function(ch){
+    var sel=selectedChannelTiles.has(ch.name);
+    return '<div class="channel-tile'+(sel?' selected':'')+'" data-channel="'+escHtml(ch.name)+'" onclick="toggleChannelTile(this,\''+escHtml(ch.name)+'\')">'+
       '<div class="channel-tile-name">'+escHtml(ch.name)+'</div>'+
       '<div class="channel-tile-desc">'+escHtml(ch.desc)+'</div>'+
     '</div>';
   }).join('');
-  document.getElementById('customChannelChips').innerHTML='';
+
+  renderCustomChips();
   document.getElementById('customChannelInput').value='';
+
+  var isSettings=channelSelectMode==='settings';
+  document.getElementById('channelSelectTitle').textContent=isSettings?'Your channels':'What interests you?';
+  document.getElementById('channelSelectSub').textContent=isSettings?'Add or remove channels. Minimum 3.':'Select at least 3 channels to get started.';
+  document.getElementById('channelStartBtn').textContent=isSettings?'Save changes':'Start reading';
+  document.getElementById('channelSelectBack').style.display=isSettings?'block':'none';
+
   updateChannelSelectCount();
   document.getElementById('channelSelectOverlay').classList.add('open');
-  document.getElementById('authOverlay').style.display='none';
+  if(!isSettings)document.getElementById('authOverlay').style.display='none';
+}
+
+function showSettingsChannels(){
+  document.getElementById('signoutPopover').classList.remove('open');
+  showChannelSelectScreen('settings');
+}
+
+function closeChannelSettings(){
+  document.getElementById('channelSelectOverlay').classList.remove('open');
 }
 
 function toggleChannelTile(el,name){
@@ -472,14 +505,25 @@ function updateChannelSelectCount(){
 async function saveChannels(){
   var channels=Array.from(selectedChannelTiles).concat(customChannels);
   if(channels.length<3)return;
-  document.getElementById('channelStartBtn').disabled=true;
-  document.getElementById('channelStartBtn').textContent='Saving...';
+  var btn=document.getElementById('channelStartBtn');
+  btn.disabled=true;btn.textContent='Saving...';
   if(sb&&currentUser){
     await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:channels});
   }
   userProfile=userProfile||{};userProfile.channels=channels;
   document.getElementById('channelSelectOverlay').classList.remove('open');
-  startApp();
+  btn.textContent=channelSelectMode==='settings'?'Save changes':'Start reading';
+  if(channelSelectMode==='settings'){
+    // Rebuild channel tabs and feed with updated selection
+    buildChannels();
+    activeChannel='all';
+    document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
+    var first=document.querySelector('.channel-btn');
+    if(first)first.classList.add('active');
+    renderFeed();
+  }else{
+    startApp();
+  }
 }
 
 // ─── Data loading ───────────────────────────────────────────────────────────────
