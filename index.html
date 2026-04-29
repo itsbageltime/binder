@@ -356,9 +356,15 @@ function buildBylineHtml(c){
 
 function createCardEl(c){
   var isLiked=likedUrls.has(c.url);
-  var jName=c.author&&c.author!=='Unknown'?c.author:c.source;
-  var jInit=jName.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  var hasAuthor=c.author&&c.author!=='Unknown';
+  var jDisplayName=hasAuthor?c.author:'Unknown Author';
+  var jInit=hasAuthor?c.author.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase():'?';
   var pInit=c.source.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+  var jKey=(c.author||'')+'|'+c.source;
+  var jFollowed=!!followedJournalists[jKey];
+  var pFollowed=!!followedPublications[c.source];
+  var jBorder=jFollowed?' style="border:1.5px solid #4CAF50;"':'';
+  var pBorder=pFollowed?' style="border:1.5px solid #4CAF50;"':'';
 
   var div=document.createElement('div');
   div.className='feed-card';
@@ -374,15 +380,14 @@ function createCardEl(c){
       (c.title?'<div class="feed-card-title">'+escHtml(c.title)+'</div>':'')+
       (c.context?'<div class="feed-card-context">'+escHtml(c.context)+'</div>':'')+
       '<div class="entity-btns">'+
-        '<button class="journalist-btn" data-action="journalist">'+
+        '<button class="journalist-btn" data-action="journalist"'+jBorder+'>'+
           '<div class="journalist-avatar">'+escHtml(jInit)+'</div>'+
           '<div class="journalist-info">'+
-            '<div class="journalist-name-text">'+escHtml(c.author&&c.author!=='Unknown'?c.author:c.source)+'</div>'+
-            (c.author&&c.author!=='Unknown'?'<div class="journalist-pub-text">'+escHtml(c.source)+'</div>':'')+
+            '<div class="journalist-name-text">'+escHtml(jDisplayName)+'</div>'+
           '</div>'+
           '<span class="journalist-arrow">›</span>'+
         '</button>'+
-        '<button class="journalist-btn" data-action="publication">'+
+        '<button class="journalist-btn" data-action="publication"'+pBorder+'>'+
           '<div class="journalist-avatar">'+escHtml(pInit)+'</div>'+
           '<div class="journalist-info">'+
             '<div class="journalist-name-text">'+escHtml(c.source)+'</div>'+
