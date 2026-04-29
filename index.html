@@ -10,6 +10,11 @@ body { background: #0a0a0a; color: #f0f0f0; font-family: -apple-system, BlinkMac
 header { padding: 16px 20px 8px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
 header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 header .date { font-size: 12px; color: #555; }
+.header-user { width: 28px; height: 28px; border-radius: 50%; background: #1e1e1e; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; flex-shrink: 0; }
+.signout-popover { position: absolute; top: 52px; right: 16px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 4px; z-index: 50; display: none; }
+.signout-popover.open { display: block; }
+.signout-popover button { display: block; width: 100%; padding: 8px 14px; background: none; border: none; color: #888; font-size: 13px; cursor: pointer; text-align: left; border-radius: 6px; white-space: nowrap; }
+.signout-popover button:hover { background: #222; color: #ccc; }
 .nav { display: flex; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
 .nav-btn { flex: 1; padding: 10px; background: none; border: none; color: #444; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; border-bottom: 2px solid transparent; }
 .nav-btn.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
@@ -43,7 +48,6 @@ header .date { font-size: 12px; color: #555; }
 .journalist-avatar { width: 32px; height: 32px; border-radius: 50%; background: #252525; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #888; flex-shrink: 0; }
 .journalist-info { flex: 1; }
 .journalist-name-text { font-size: 13px; font-weight: 500; color: #ccc; }
-.journalist-pub-text { font-size: 11px; color: #555; margin-top: 2px; }
 .journalist-arrow { color: #333; font-size: 14px; }
 .read-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #4a9eff; text-decoration: none; border: 1px solid #1a3a5c; padding: 7px 14px; border-radius: 10px; }
 .like-btn { background: transparent; border: none; padding: 6px 4px 6px 12px; font-size: 16px; cursor: pointer; color: #444; transition: color 0.15s; line-height: 1; }
@@ -96,13 +100,99 @@ header .date { font-size: 12px; color: #555; }
 .article-item-insight { font-size: 13px; color: #ccc; line-height: 1.55; }
 .article-item-meta { font-size: 11px; color: #444; margin-top: 6px; }
 .panel-single-note { font-size: 12px; color: #2e2e2e; line-height: 1.6; padding: 12px 4px; }
+/* Feed survey */
+.feed-survey { margin: 28px 0 8px; padding: 20px; background: #111; border: 1px solid #1e1e1e; border-radius: 16px; text-align: center; }
+.feed-survey-q { font-size: 14px; color: #888; margin-bottom: 14px; }
+.feed-survey-btns { display: flex; gap: 8px; justify-content: center; }
+.feed-survey-btn { padding: 8px 18px; border-radius: 20px; border: 1px solid #2a2a2a; background: transparent; color: #666; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.feed-survey-btn:hover { border-color: #444; color: #ccc; }
+.feed-survey-btn.selected { background: #1e1e1e; color: #f0f0f0; border-color: #444; }
+/* Auth overlay */
+.auth-overlay { position: fixed; inset: 0; background: #0a0a0a; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 24px; }
+.auth-logo { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+.auth-tagline { font-size: 13px; color: #444; margin-bottom: 40px; }
+.auth-form { width: 100%; max-width: 340px; }
+.auth-input { width: 100%; padding: 13px 16px; background: #111; border: 1px solid #222; border-radius: 12px; color: #f0f0f0; font-size: 15px; margin-bottom: 10px; outline: none; -webkit-appearance: none; }
+.auth-input:focus { border-color: #333; }
+.auth-btn-primary { width: 100%; padding: 14px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 4px; transition: opacity 0.15s; }
+.auth-btn-primary:active { opacity: 0.85; }
+.auth-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.auth-toggle { margin-top: 20px; font-size: 13px; color: #444; text-align: center; }
+.auth-toggle span { color: #888; cursor: pointer; text-decoration: underline; }
+.auth-error { font-size: 12px; color: #e05a5a; margin-top: 8px; min-height: 18px; text-align: center; }
+/* Channel select overlay */
+.channel-select-overlay { position: fixed; inset: 0; background: #0a0a0a; z-index: 200; display: none; flex-direction: column; }
+.channel-select-overlay.open { display: flex; }
+.channel-select-header { padding: 40px 20px 20px; flex-shrink: 0; }
+.channel-select-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.channel-select-sub { font-size: 13px; color: #555; }
+.channel-select-count { font-size: 12px; color: #4CAF50; margin-top: 4px; min-height: 18px; }
+.channel-select-body { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
+.channel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+.channel-tile { background: #111; border: 1.5px solid #1e1e1e; border-radius: 14px; padding: 14px 14px 12px; cursor: pointer; transition: border-color 0.15s; text-align: left; }
+.channel-tile.selected { border-color: #4CAF50; }
+.channel-tile-name { font-size: 14px; font-weight: 600; color: #ccc; margin-bottom: 4px; }
+.channel-tile.selected .channel-tile-name { color: #4CAF50; }
+.channel-tile-desc { font-size: 11px; color: #444; line-height: 1.45; }
+.channel-custom { margin-bottom: 16px; }
+.channel-custom-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; margin-bottom: 8px; }
+.channel-custom-row { display: flex; gap: 8px; }
+.channel-custom-input { flex: 1; padding: 10px 14px; background: #111; border: 1px solid #222; border-radius: 10px; color: #f0f0f0; font-size: 14px; outline: none; -webkit-appearance: none; }
+.channel-custom-add { padding: 10px 16px; background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; color: #888; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.channel-chip { display: flex; align-items: center; gap: 6px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 4px 10px 4px 12px; font-size: 12px; color: #888; }
+.channel-chip-remove { background: none; border: none; color: #555; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+.channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid #111; }
+.channel-start-btn { width: 100%; padding: 14px; background: #4CAF50; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+.channel-start-btn:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
+
+<!-- Auth overlay -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-logo">Binder</div>
+  <div class="auth-tagline">Signal, not noise.</div>
+  <div class="auth-form">
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email">
+    <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <button class="auth-btn-primary" id="authPrimaryBtn" onclick="handleAuthSubmit()">Create account</button>
+    <div class="auth-toggle" id="authToggle">Already have an account? <span onclick="toggleAuthMode()">Sign in</span></div>
+  </div>
+</div>
+
+<!-- Channel select overlay -->
+<div class="channel-select-overlay" id="channelSelectOverlay">
+  <div class="channel-select-header">
+    <div class="channel-select-title">What interests you?</div>
+    <div class="channel-select-sub">Select at least 3 channels to get started.</div>
+    <div class="channel-select-count" id="channelSelectCount"></div>
+  </div>
+  <div class="channel-select-body">
+    <div class="channel-grid" id="channelGrid"></div>
+    <div class="channel-custom">
+      <div class="channel-custom-label">Add your own</div>
+      <div class="channel-custom-row">
+        <input class="channel-custom-input" id="customChannelInput" type="text" placeholder="e.g. Artificial Intelligence">
+        <button class="channel-custom-add" onclick="addCustomChannel()">Add</button>
+      </div>
+      <div class="channel-chips" id="customChannelChips"></div>
+    </div>
+  </div>
+  <div class="channel-select-footer">
+    <button class="channel-start-btn" id="channelStartBtn" disabled onclick="saveChannels()">Start reading</button>
+  </div>
+</div>
+
 <header>
   <h1>Binder</h1>
   <span class="date" id="dateLabel"></span>
+  <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
+  <div class="signout-popover" id="signoutPopover">
+    <button onclick="handleSignOut()">Sign out</button>
+  </div>
 </header>
 <div class="nav">
   <button class="nav-btn active" onclick="switchView('feed',this)">Feed</button>
@@ -119,9 +209,7 @@ header .date { font-size: 12px; color: #555; }
     </div>
   </div>
   <div class="view" id="deckView"><div id="deckContent"></div></div>
-  <div class="view" id="voicesView">
-    <div id="rosterContent"></div>
-  </div>
+  <div class="view" id="voicesView"><div id="rosterContent"></div></div>
   <div class="view" id="archiveView"><div id="archiveContent"></div></div>
   <div class="journalist-panel" id="journalistPanel">
     <div class="panel-inner">
@@ -151,9 +239,7 @@ header .date { font-size: 12px; color: #555; }
       <div class="panel-header"><button class="panel-back" onclick="closePublication()">← Back</button></div>
       <div class="journalist-profile">
         <div class="profile-avatar" id="pubPanelAvatar"></div>
-        <div class="profile-info">
-          <div class="profile-name" id="pubPanelName"></div>
-        </div>
+        <div class="profile-info"><div class="profile-name" id="pubPanelName"></div></div>
         <button class="follow-btn" id="pubFollowBtn" onclick="togglePublicationFollow()">Follow</button>
       </div>
       <div class="journalist-bio" id="publicationBio"></div>
@@ -168,12 +254,18 @@ header .date { font-size: 12px; color: #555; }
     </div>
   </div>
 </div>
+
 <script>
 var SUPABASE_URL='https://nbiwbvqbtyqvuzaklvcx.supabase.co';
 var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaXdidnFidHlxdnV6YWtsdmN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNzA0NTcsImV4cCI6MjA5MjY0NjQ1N30.pooWsM3kVOcYb790LsEh5RQyJyn8g4mI28gsoXweW64';
-var sb=(window.supabase&&SUPABASE_URL!=='YOUR_SUPABASE_URL')
-  ?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+var sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
 
+// ─── Auth state ────────────────────────────────────────────────────────────────
+var currentUser=null;
+var userProfile=null;
+var authMode='signup'; // 'signup' | 'login'
+
+// ─── App state ─────────────────────────────────────────────────────────────────
 var allCards=[],activeChannel='all';
 var likedUrls=new Set(),savedCards=[];
 var followedJournalists={},currentJournalist=null;
@@ -181,8 +273,36 @@ var followedPublications={},currentPublication=null;
 var panelRelated=[],panelSort='date';
 var pubPanelRelated=[],pubPanelSort='date';
 
+// ─── Signal / session state ────────────────────────────────────────────────────
+var userSignalData={clickedSources:new Set(),dwelledSources:new Set(),likedChannels:new Map(),scrolledPastSources:new Map()};
+var signalCount=0;
+var signalBuffer=[];
+var expandStartTime={};
+var sessionData={cards_seen:0,cards_completed:0,expands:0,article_clicks:0,likes:0};
+var seenCardUrls=new Set();
+var surveyAnsweredToday=false;
+
+// ─── Channel definitions ───────────────────────────────────────────────────────
+var CHANNEL_DEFS=[
+  {name:'Architecture',desc:'Buildings, spaces, and the people who design them'},
+  {name:'Design',desc:'Objects, systems, and visual culture'},
+  {name:'Technology',desc:'What\'s being built and what it means'},
+  {name:'Energy & Climate',desc:'The energy transition and its consequences'},
+  {name:'Urban Development',desc:'How cities grow, change, and fail'},
+  {name:'Business & Startups',desc:'Companies, capital, and the economy'},
+  {name:'Science',desc:'Discoveries, research, and how we understand the world'},
+  {name:'Arts & Culture',desc:'Art, music, film, and creative life'},
+  {name:'Film',desc:'Cinema, the industry, and screen culture'},
+  {name:'Fashion',desc:'Style, the industry, and what we wear'},
+  {name:'Politics & World',desc:'Power, policy, and global affairs'}
+];
+
+var selectedChannelTiles=new Set();
+var customChannels=[];
+
 document.getElementById('dateLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
+// ─── Utilities ─────────────────────────────────────────────────────────────────
 function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -197,12 +317,184 @@ function normalizeCard(c){
   };
 }
 
-async function loadFollows(){
-  if(!sb)return;
+// ─── Auth ───────────────────────────────────────────────────────────────────────
+function initAuth(){
+  if(!sb){showApp(null);return;}
+  sb.auth.onAuthStateChange(function(event,session){
+    if(session&&session.user){
+      currentUser=session.user;
+      document.getElementById('authOverlay').style.display='none';
+      loadProfile().then(function(){
+        if(!userProfile||!userProfile.channels||!userProfile.channels.length){
+          showChannelSelectScreen();
+        }else{
+          startApp();
+        }
+      });
+    }else{
+      currentUser=null;
+      userProfile=null;
+      document.getElementById('authOverlay').style.display='flex';
+    }
+  });
+  sb.auth.getSession();
+}
+
+function toggleAuthMode(){
+  authMode=authMode==='signup'?'login':'signup';
+  document.getElementById('authPrimaryBtn').textContent=authMode==='signup'?'Create account':'Sign in';
+  document.getElementById('authToggle').innerHTML=authMode==='signup'
+    ?'Already have an account? <span onclick="toggleAuthMode()">Sign in</span>'
+    :'New to Binder? <span onclick="toggleAuthMode()">Create account</span>';
+  document.getElementById('authError').textContent='';
+}
+
+async function handleAuthSubmit(){
+  var email=document.getElementById('authEmail').value.trim();
+  var pass=document.getElementById('authPassword').value;
+  var errEl=document.getElementById('authError');
+  var btn=document.getElementById('authPrimaryBtn');
+  if(!email||!pass){errEl.textContent='Email and password required.';return;}
+  btn.disabled=true;errEl.textContent='';
   try{
+    if(authMode==='signup'){
+      var res=await sb.auth.signUp({email:email,password:pass});
+      if(res.error)throw res.error;
+      // Profile created by trigger or we create it here
+      if(res.data&&res.data.user){
+        await sb.from('profiles').upsert({user_id:res.data.user.id,email:email,channels:[]});
+      }
+    }else{
+      var res=await sb.auth.signInWithPassword({email:email,password:pass});
+      if(res.error)throw res.error;
+    }
+  }catch(e){
+    errEl.textContent=e.message||'Something went wrong.';
+    btn.disabled=false;
+  }
+}
+
+async function handleSignOut(){
+  document.getElementById('signoutPopover').classList.remove('open');
+  if(sb)await sb.auth.signOut();
+  // Reset state
+  allCards=[];likedUrls=new Set();savedCards=[];
+  followedJournalists={};followedPublications={};
+  userSignalData={clickedSources:new Set(),dwelledSources:new Set(),likedChannels:new Map(),scrolledPastSources:new Map()};
+  signalCount=0;signalBuffer=[];sessionData={cards_seen:0,cards_completed:0,expands:0,article_clicks:0,likes:0};
+  seenCardUrls=new Set();surveyAnsweredToday=false;currentUser=null;userProfile=null;
+  document.getElementById('authOverlay').style.display='flex';
+  authMode='signup';
+  document.getElementById('authPrimaryBtn').textContent='Create account';
+  document.getElementById('authToggle').innerHTML='Already have an account? <span onclick="toggleAuthMode()">Sign in</span>';
+  document.getElementById('authError').textContent='';
+  document.getElementById('authEmail').value='';document.getElementById('authPassword').value='';
+}
+
+function toggleUserPopover(){
+  document.getElementById('signoutPopover').classList.toggle('open');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#headerUser')&&!e.target.closest('#signoutPopover')){
+    document.getElementById('signoutPopover').classList.remove('open');
+  }
+});
+
+async function loadProfile(){
+  if(!sb||!currentUser)return;
+  try{
+    var res=await sb.from('profiles').select('*').eq('user_id',currentUser.id).maybeSingle();
+    if(!res.error&&res.data)userProfile=res.data;
+  }catch(e){}
+}
+
+async function startApp(){
+  var init=currentUser&&currentUser.email?(currentUser.email[0]||'?').toUpperCase():'?';
+  document.getElementById('headerUser').textContent=init;
+  await Promise.all([loadFollows(),loadUserSignals()]);
+  await loadCards();
+  await loadUserLikes();
+  checkSurveyAnswered();
+}
+
+// ─── Channel selection screen ──────────────────────────────────────────────────
+function showChannelSelectScreen(){
+  selectedChannelTiles=new Set();customChannels=[];
+  var grid=document.getElementById('channelGrid');
+  grid.innerHTML=CHANNEL_DEFS.map(function(ch,i){
+    return '<div class="channel-tile" data-channel="'+escHtml(ch.name)+'" onclick="toggleChannelTile(this,\''+escHtml(ch.name)+'\')">'+
+      '<div class="channel-tile-name">'+escHtml(ch.name)+'</div>'+
+      '<div class="channel-tile-desc">'+escHtml(ch.desc)+'</div>'+
+    '</div>';
+  }).join('');
+  document.getElementById('customChannelChips').innerHTML='';
+  document.getElementById('customChannelInput').value='';
+  updateChannelSelectCount();
+  document.getElementById('channelSelectOverlay').classList.add('open');
+  document.getElementById('authOverlay').style.display='none';
+}
+
+function toggleChannelTile(el,name){
+  if(selectedChannelTiles.has(name)){selectedChannelTiles.delete(name);el.classList.remove('selected');}
+  else{selectedChannelTiles.add(name);el.classList.add('selected');}
+  updateChannelSelectCount();
+}
+
+function addCustomChannel(){
+  var input=document.getElementById('customChannelInput');
+  var val=input.value.trim();
+  if(!val)return;
+  if(customChannels.indexOf(val)===-1){customChannels.push(val);renderCustomChips();}
+  input.value='';
+  updateChannelSelectCount();
+}
+document.getElementById('customChannelInput').addEventListener('keydown',function(e){if(e.key==='Enter')addCustomChannel();});
+
+function removeCustomChannel(name){
+  customChannels=customChannels.filter(function(c){return c!==name;});
+  renderCustomChips();updateChannelSelectCount();
+}
+
+function renderCustomChips(){
+  document.getElementById('customChannelChips').innerHTML=customChannels.map(function(name){
+    return '<div class="channel-chip">'+escHtml(name)+'<button class="channel-chip-remove" onclick="removeCustomChannel(\''+escHtml(name)+'\')">×</button></div>';
+  }).join('');
+}
+
+function updateChannelSelectCount(){
+  var total=selectedChannelTiles.size+customChannels.length;
+  var btn=document.getElementById('channelStartBtn');
+  var countEl=document.getElementById('channelSelectCount');
+  btn.disabled=total<3;
+  countEl.textContent=total>0?total+' selected'+(total<3?' — need at least 3':''):'';
+}
+
+async function saveChannels(){
+  var channels=Array.from(selectedChannelTiles).concat(customChannels);
+  if(channels.length<3)return;
+  document.getElementById('channelStartBtn').disabled=true;
+  document.getElementById('channelStartBtn').textContent='Saving...';
+  if(sb&&currentUser){
+    await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:channels});
+  }
+  userProfile=userProfile||{};userProfile.channels=channels;
+  document.getElementById('channelSelectOverlay').classList.remove('open');
+  startApp();
+}
+
+// ─── Data loading ───────────────────────────────────────────────────────────────
+function getUserChannels(){
+  if(userProfile&&userProfile.channels&&userProfile.channels.length>0)return userProfile.channels;
+  return CHANNEL_DEFS.map(function(c){return c.name;});
+}
+
+async function loadFollows(){
+  if(!sb||!currentUser)return;
+  try{
+    var uid=currentUser.id;
     var results=await Promise.all([
-      sb.from('followed_journalists').select('name,publication'),
-      sb.from('followed_publications').select('name')
+      sb.from('followed_journalists').select('name,publication').eq('user_id',uid),
+      sb.from('followed_publications').select('name').eq('user_id',uid)
     ]);
     var jRes=results[0],pRes=results[1];
     if(!jRes.error&&jRes.data){
@@ -217,24 +509,55 @@ async function loadFollows(){
   }catch(e){}
 }
 
+async function loadUserSignals(){
+  if(!sb||!currentUser)return;
+  try{
+    var res=await sb.from('user_signals').select('signal_type,source,channel,dwell_seconds').eq('user_id',currentUser.id);
+    if(res.error||!res.data)return;
+    signalCount=res.data.length;
+    res.data.forEach(function(s){
+      if(s.signal_type==='click_through'&&s.source)userSignalData.clickedSources.add(s.source);
+      if(s.signal_type==='dwell'&&s.source&&s.dwell_seconds>=10)userSignalData.dwelledSources.add(s.source);
+      if(s.signal_type==='like'&&s.channel){
+        userSignalData.likedChannels.set(s.channel,(userSignalData.likedChannels.get(s.channel)||0)+1);
+      }
+      if(s.signal_type==='scroll_past'&&s.source){
+        userSignalData.scrolledPastSources.set(s.source,(userSignalData.scrolledPastSources.get(s.source)||0)+1);
+      }
+    });
+  }catch(e){}
+}
+
+async function loadUserLikes(){
+  if(!sb||!currentUser)return;
+  try{
+    var res=await sb.from('user_likes').select('card_url').eq('user_id',currentUser.id);
+    if(res.error||!res.data)return;
+    res.data.forEach(function(r){
+      likedUrls.add(r.card_url);
+      var c=allCards.find(function(x){return x.url===r.card_url;});
+      if(c&&!savedCards.find(function(s){return s.url===r.card_url;}))savedCards.push({url:r.card_url,card:c});
+    });
+    // Refresh like buttons already rendered
+    document.querySelectorAll('.feed-card').forEach(function(div){
+      var btn=div.querySelector('[data-action="like"]');
+      if(btn)btn.className='like-btn'+(likedUrls.has(div.dataset.url)?' liked':'');
+    });
+  }catch(e){}
+}
+
 async function loadCards(){
   document.getElementById('pageCurrent').innerHTML='<div class="empty-state" style="color:#222">Loading...</div>';
-  await loadFollows();
-  console.log('[Binder] sb client:',sb?'ready':'null (window.supabase='+typeof window.supabase+')');
   if(sb){
     try{
       var sevenDaysAgo=new Date(Date.now()-7*24*3600*1000).toISOString().split('T')[0];
-      console.log('[Binder] Fetching cards since',sevenDaysAgo);
       var res=await sb.from('cards').select('*').gte('pipeline_run',sevenDaysAgo).order('pipeline_run',{ascending:false}).order('score',{ascending:false}).range(0,2999);
-      console.log('[Binder] Supabase response — error:',res.error,'| rows:',res.data&&res.data.length);
       if(!res.error&&res.data&&res.data.length>0){
         allCards=res.data.map(normalizeCard).filter(function(c){return!!c.insight;});
-        console.log('[Binder] Loaded',allCards.length,'cards from Supabase');
         buildChannels();renderFeed();return;
       }
     }catch(e){console.error('[Binder] Supabase exception:',e);}
   }
-  console.log('[Binder] Falling back to cards.json');
   try{
     var r=await fetch('cards.json');
     allCards=(await r.json()).map(normalizeCard).filter(function(c){return!!c.insight;});
@@ -244,15 +567,84 @@ async function loadCards(){
   }
 }
 
+// ─── Signal recording ───────────────────────────────────────────────────────────
+function recordSignal(type,card,extra){
+  if(!sb||!currentUser)return;
+  var sig={
+    user_id:currentUser.id,card_url:card.url,signal_type:type,
+    channel:card.channel,source:card.source,author:card.author||null,
+    dwell_seconds:(extra&&extra.dwell_seconds)||null
+  };
+  signalCount++;
+  if(type==='scroll_past'){
+    signalBuffer.push(sig);
+  }else{
+    sb.from('user_signals').insert(sig).then(function(){});
+    // Update local signal data for immediate scoring effect
+    if(type==='click_through')userSignalData.clickedSources.add(card.source);
+    if(type==='dwell'&&extra&&extra.dwell_seconds>=10)userSignalData.dwelledSources.add(card.source);
+    if(type==='like'){userSignalData.likedChannels.set(card.channel,(userSignalData.likedChannels.get(card.channel)||0)+1);}
+  }
+}
+
+function flushSignalBuffer(){
+  if(!sb||!currentUser||signalBuffer.length===0)return;
+  var toFlush=signalBuffer.splice(0);
+  toFlush.forEach(function(s){
+    userSignalData.scrolledPastSources.set(s.source,(userSignalData.scrolledPastSources.get(s.source)||0)+1);
+  });
+  sb.from('user_signals').insert(toFlush).then(function(){});
+}
+
+function flushSession(){
+  if(!sb||!currentUser)return;
+  var today=new Date().toISOString().split('T')[0];
+  sb.from('user_sessions').upsert(
+    {user_id:currentUser.id,date:today,cards_seen:sessionData.cards_seen,cards_completed:sessionData.cards_completed,expands:sessionData.expands,article_clicks:sessionData.article_clicks,likes:sessionData.likes},
+    {onConflict:'user_id,date'}
+  ).then(function(){});
+}
+
+setInterval(flushSignalBuffer,30000);
+setInterval(flushSession,60000);
+document.addEventListener('visibilitychange',function(){if(document.hidden){flushSignalBuffer();flushSession();}});
+
+// ─── Intersection observer (scroll_past + cards_seen) ──────────────────────────
+var cardObserver=new IntersectionObserver(function(entries){
+  entries.forEach(function(entry){
+    var div=entry.target;
+    var url=div.dataset.url;
+    if(!url)return;
+    var c=allCards.find(function(x){return x.url===url;});
+    if(!c)return;
+    if(entry.isIntersecting&&entry.intersectionRatio>=0.5){
+      if(!seenCardUrls.has(url)){seenCardUrls.add(url);sessionData.cards_seen++;}
+    }else if(!entry.isIntersecting&&seenCardUrls.has(url)){
+      var exp=div.querySelector('.feed-card-expanded');
+      if(!exp||!exp.classList.contains('open')){
+        recordSignal('scroll_past',c,{});
+        sessionData.cards_completed++;
+      }
+    }
+  });
+},{threshold:[0.5]});
+
+// ─── Channels / scoring ─────────────────────────────────────────────────────────
 function buildChannels(){
-  var topics=['all'].concat(Array.from(new Set(allCards.map(function(c){return c.channel;}))));
-  document.getElementById('channels').innerHTML=topics.map(function(t){
-    return '<button class="channel-btn'+(t==='all'?' active':'')+'" onclick="switchChannel(\''+t+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
+  var userChans=getUserChannels();
+  var cardChans=Array.from(new Set(allCards.map(function(c){return c.channel;})));
+  // Show user's selected channels that appear in cards, plus any card channels not in user list
+  var combined=['all'].concat(cardChans.filter(function(ch){return userChans.indexOf(ch)!==-1;}));
+  // Also add user's custom channels (may be empty)
+  userChans.forEach(function(ch){if(combined.indexOf(ch)===-1)combined.push(ch);});
+  document.getElementById('channels').innerHTML=combined.map(function(t){
+    return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
   }).join('');
 }
 
 function getChannelList(){
-  return['all'].concat(Array.from(new Set(allCards.map(function(c){return c.channel;}))));
+  var btns=document.querySelectorAll('.channel-btn');
+  return Array.from(btns).map(function(b){return b.textContent==='All'?'all':b.textContent;});
 }
 
 function switchChannel(topic,el){
@@ -260,6 +652,19 @@ function switchChannel(topic,el){
   document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
   renderFeed();
+}
+
+function personalScore(c){
+  if(signalCount<20)return c.score||0;
+  var key=(c.author||'')+'|'+c.source;
+  var score=c.score||0;
+  score+=(followedJournalists[key]?3:0);
+  score+=(followedPublications[c.source]?3:0);
+  score+=(userSignalData.clickedSources.has(c.source)?2:0);
+  score+=(userSignalData.dwelledSources.has(c.source)?2:0);
+  score+=((userSignalData.likedChannels.get(c.channel)||0)>0?1:0);
+  score+=((userSignalData.scrolledPastSources.get(c.source)||0)>=3?-1:0);
+  return score;
 }
 
 function formatRunLabel(runDate,createdAt){
@@ -270,13 +675,12 @@ function formatRunLabel(runDate,createdAt){
     var d=new Date(createdAt);
     timeStr=' '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','');
   }
-  if(runDate===today)return'Today '+timeStr;
-  if(runDate===yesterday)return'Yesterday '+timeStr;
+  if(runDate===today)return'Today'+timeStr;
+  if(runDate===yesterday)return'Yesterday'+timeStr;
   var d=new Date(runDate+'T12:00:00');
-  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+' '+timeStr;
+  return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+timeStr;
 }
 
-// Precompute earliest createdAt per pipeline_run across ALL cards (not per-channel batch)
 function buildRunTimestamps(){
   var map={};
   allCards.forEach(function(c){
@@ -287,20 +691,15 @@ function buildRunTimestamps(){
 }
 
 function buildPageContent(el,channelName){
-  var pool=channelName==='all'
-    ?allCards.slice()
-    :allCards.filter(function(c){return c.channel===channelName;});
-  var likedSources=new Set();
-  likedUrls.forEach(function(url){
-    var c=allCards.find(function(x){return x.url===url;});
-    if(c)likedSources.add(c.source);
-  });
-  pool.forEach(function(c){
-    var key=(c.author||'')+'|'+c.source;
-    c._pScore=(c.score||0)+(followedJournalists[key]?3:0)+(followedPublications[c.source]?3:0)+(likedSources.has(c.source)?2:0);
-  });
+  var userChans=getUserChannels();
+  var pool;
+  if(channelName==='all'){
+    pool=allCards.filter(function(c){return userChans.indexOf(c.channel)!==-1;});
+  }else{
+    pool=allCards.filter(function(c){return c.channel===channelName;});
+  }
+  pool.forEach(function(c){c._pScore=personalScore(c);});
   var runTimestamps=buildRunTimestamps();
-  // Group by pipeline_run, newest first
   var groups={};
   pool.forEach(function(c){
     var run=c.pipelineRun||'unknown';
@@ -309,10 +708,15 @@ function buildPageContent(el,channelName){
   });
   var runDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a);});
   el.innerHTML='';
-  if(runDates.length===0){el.innerHTML='<div class="empty-state">No cards yet.</div>';return;}
+  if(runDates.length===0){
+    el.innerHTML='<div class="empty-state">No cards yet.</div>';
+    appendSurvey(el);
+    return;
+  }
   runDates.forEach(function(runDate,i){
     var batch=groups[runDate];
     batch.sort(function(a,b){return b._pScore-a._pScore;});
+    if(channelName!=='all'){batch=batch.slice(0,10);}
     if(i>0){
       var divider=document.createElement('div');
       divider.className='run-divider';
@@ -321,14 +725,73 @@ function buildPageContent(el,channelName){
         '<div class="run-divider-line"></div>';
       el.appendChild(divider);
     }
-    batch.forEach(function(c){el.appendChild(createCardEl(c));});
+    batch.forEach(function(c){
+      var card=createCardEl(c);
+      el.appendChild(card);
+      cardObserver.observe(card);
+    });
   });
+  appendSurvey(el);
+  // Check channel complete
+  if(channelName!=='all'&&pool.length>0){
+    checkChannelComplete(channelName,pool);
+  }
 }
 
 function renderFeed(){
   buildPageContent(document.getElementById('pageCurrent'),activeChannel);
 }
 
+// ─── Feed survey ────────────────────────────────────────────────────────────────
+function appendSurvey(el){
+  var div=document.createElement('div');
+  div.className='feed-survey';
+  div.id='feedSurvey';
+  if(surveyAnsweredToday){
+    div.innerHTML='<div class="feed-survey-q" style="color:#333">Thanks for the feedback.</div>';
+  }else{
+    div.innerHTML=
+      '<div class="feed-survey-q">Better than headlines?</div>'+
+      '<div class="feed-survey-btns">'+
+        '<button class="feed-survey-btn" onclick="submitSurvey(\'yes\',this)">Yes</button>'+
+        '<button class="feed-survey-btn" onclick="submitSurvey(\'same\',this)">Same</button>'+
+        '<button class="feed-survey-btn" onclick="submitSurvey(\'worse\',this)">Worse</button>'+
+      '</div>';
+  }
+  el.appendChild(div);
+}
+
+async function checkSurveyAnswered(){
+  if(!sb||!currentUser)return;
+  var today=new Date().toISOString().split('T')[0];
+  try{
+    var res=await sb.from('feed_surveys').select('response').eq('user_id',currentUser.id).eq('date',today).maybeSingle();
+    if(!res.error&&res.data){
+      surveyAnsweredToday=true;
+      var s=document.getElementById('feedSurvey');
+      if(s)s.innerHTML='<div class="feed-survey-q" style="color:#333">Thanks for the feedback.</div>';
+    }
+  }catch(e){}
+}
+
+function submitSurvey(response,btn){
+  surveyAnsweredToday=true;
+  var survey=btn.closest('.feed-survey');
+  if(survey)survey.innerHTML='<div class="feed-survey-q" style="color:#333">Thanks for the feedback.</div>';
+  if(!sb||!currentUser)return;
+  var today=new Date().toISOString().split('T')[0];
+  sb.from('feed_surveys').upsert({user_id:currentUser.id,date:today,response:response},{onConflict:'user_id,date'}).then(function(){});
+}
+
+function checkChannelComplete(channel,pool){
+  // Record channel_complete if all cards in this channel have been seen
+  var allSeen=pool.every(function(c){return seenCardUrls.has(c.url);});
+  if(allSeen&&pool.length>0){
+    recordSignal('channel_complete',pool[0],{});
+  }
+}
+
+// ─── Card creation ──────────────────────────────────────────────────────────────
 function buildBylineHtml(c){
   var key=(c.author||'')+'|'+c.source;
   var jFollowed=!!followedJournalists[key];
@@ -369,20 +832,16 @@ function createCardEl(c){
       '<div class="entity-btns">'+
         '<button class="journalist-btn" data-action="journalist">'+
           '<div class="journalist-avatar"'+jAvatarStyle+'>'+escHtml(jInit)+'</div>'+
-          '<div class="journalist-info">'+
-            '<div class="journalist-name-text">'+escHtml(jDisplayName)+'</div>'+
-          '</div>'+
+          '<div class="journalist-info"><div class="journalist-name-text">'+escHtml(jDisplayName)+'</div></div>'+
           '<span class="journalist-arrow">›</span>'+
         '</button>'+
         '<button class="journalist-btn" data-action="publication">'+
           '<div class="journalist-avatar"'+pAvatarStyle+'>'+escHtml(pInit)+'</div>'+
-          '<div class="journalist-info">'+
-            '<div class="journalist-name-text">'+escHtml(c.source)+'</div>'+
-          '</div>'+
+          '<div class="journalist-info"><div class="journalist-name-text">'+escHtml(c.source)+'</div></div>'+
           '<span class="journalist-arrow">›</span>'+
         '</button>'+
       '</div>'+
-      '<a class="read-link" href="'+escHtml(c.url)+'" target="_blank">Read full article →</a>'+
+      '<a class="read-link" href="'+escHtml(c.url)+'" target="_blank" data-action="read">Read full article →</a>'+
     '</div>';
 
   attachCardHandlers(div,c);
@@ -394,14 +853,30 @@ function attachCardHandlers(div,c){
     if(e.target.closest('[data-action="journalist"]')){openJournalist(c);return;}
     if(e.target.closest('[data-action="publication"]')){openPublication(c);return;}
     if(e.target.closest('[data-action="like"]')){toggleLike(div,c);return;}
-    if(e.target.closest('.read-link'))return;
-    toggleExpand(div);
+    if(e.target.closest('[data-action="read"]')){
+      recordSignal('click_through',c,{});
+      sessionData.article_clicks++;
+      return;
+    }
+    toggleExpand(div,c);
   });
 }
 
-function toggleExpand(div){
+function toggleExpand(div,c){
   var exp=div.querySelector('.feed-card-expanded');
-  if(exp)exp.classList.toggle('open');
+  if(!exp)return;
+  var isOpen=exp.classList.contains('open');
+  if(!isOpen){
+    exp.classList.add('open');
+    if(c){expandStartTime[c.url]=Date.now();sessionData.expands++;}
+  }else{
+    exp.classList.remove('open');
+    if(c&&expandStartTime[c.url]){
+      var dwell=(Date.now()-expandStartTime[c.url])/1000;
+      delete expandStartTime[c.url];
+      if(dwell>=2)recordSignal('dwell',c,{dwell_seconds:Math.round(dwell)});
+    }
+  }
 }
 
 function toggleLike(div,c){
@@ -410,18 +885,19 @@ function toggleLike(div,c){
     likedUrls.delete(c.url);
     savedCards=savedCards.filter(function(s){return s.url!==c.url;});
     if(btn)btn.className='like-btn';
+    if(sb&&currentUser)sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',c.url).then(function(){});
   }else{
     likedUrls.add(c.url);
     if(!savedCards.find(function(s){return s.url===c.url;})){savedCards.push({url:c.url,card:c});}
     if(btn)btn.className='like-btn liked';
+    if(sb&&currentUser)sb.from('user_likes').upsert({user_id:currentUser.id,card_url:c.url}).then(function(){});
+    recordSignal('like',c,{});
+    sessionData.likes++;
   }
 }
 
-
-function openJournalist(c){
-  openJournalistPanel(c.author||'Unknown',c.source,c.channel,c.authorBio||'');
-}
-
+// ─── Journalist panel ───────────────────────────────────────────────────────────
+function openJournalist(c){openJournalistPanel(c.author||'Unknown',c.source,c.channel,c.authorBio||'');}
 function openRosterJournalist(name,pub){
   var card=allCards.find(function(c){return c.author===name&&c.source===pub;});
   var channel=(followedJournalists[name+'|'+pub]||{}).channel||'';
@@ -460,8 +936,7 @@ function renderPanelArticles(){
   var feedCards=sorted.filter(function(a){return!a.archiveOnly&&!!a.insight;});
   var archiveItems=sorted.filter(function(a){return a.archiveOnly||!a.insight;});
   if(feedCards.length===0&&archiveItems.length===0){
-    document.getElementById('panelArticles').innerHTML='<div class="panel-single-note">No articles from this journalist yet.</div>';
-    return;
+    document.getElementById('panelArticles').innerHTML='<div class="panel-single-note">No articles from this journalist yet.</div>';return;
   }
   var html='';
   feedCards.forEach(function(a){
@@ -470,7 +945,7 @@ function renderPanelArticles(){
       '<div class="article-item-insight">'+escHtml(a.insight)+'</div>'+
       '<div class="article-item-meta">'+escHtml(a.source)+(dateStr?' · '+dateStr:'')+'</div></div>';
   });
-  if(feedCards.length===1){html+='<div class="panel-single-note">Only one article in your feed — more will appear as the pipeline runs.</div>';}
+  if(feedCards.length===1)html+='<div class="panel-single-note">Only one article in your feed — more will appear as the pipeline runs.</div>';
   if(archiveItems.length>0){
     html+='<div class="panel-section" style="margin:20px 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#333;">Also captured</div>';
     archiveItems.forEach(function(a){
@@ -488,9 +963,9 @@ function sortPanelArticles(sort,btn){
   document.querySelectorAll('#journalistPanel .panel-sort-btn').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');renderPanelArticles();
 }
-
 function closeJournalist(){document.getElementById('journalistPanel').classList.remove('open');}
 
+// ─── Publication panel ──────────────────────────────────────────────────────────
 function openPublication(c){openPublicationPanel(c.source);}
 function openRosterPublication(name){openPublicationPanel(name);}
 
@@ -512,9 +987,7 @@ async function openPublicationPanel(name){
   if(sb){
     try{
       var bioRes=await sb.from('publication_bios').select('bio').eq('name',name).maybeSingle();
-      if(!bioRes.error&&bioRes.data&&bioRes.data.bio){
-        document.getElementById('publicationBio').textContent=bioRes.data.bio;
-      }
+      if(!bioRes.error&&bioRes.data&&bioRes.data.bio)document.getElementById('publicationBio').textContent=bioRes.data.bio;
     }catch(ex){}
     try{
       var artRes=await sb.from('cards').select('*').eq('source',name).order('pub_date',{ascending:false}).limit(100);
@@ -539,7 +1012,7 @@ function renderPubPanelArticles(){
       '<div class="article-item-insight">'+escHtml(a.insight)+'</div>'+
       '<div class="article-item-meta">'+escHtml(a.channel)+(dateStr?' · '+dateStr:'')+(a.author&&a.author!=='Unknown'?' · '+escHtml(a.author):'')+'</div></div>';
   });
-  if(sorted.length===1){html+='<div class="panel-single-note">Only one article from this publication in your feed — check back as more appear.</div>';}
+  if(sorted.length===1)html+='<div class="panel-single-note">Only one article from this publication in your feed.</div>';
   el.innerHTML=html;
 }
 
@@ -547,45 +1020,44 @@ function sortPubPanelArticles(sort,btn){
   pubPanelSort=sort;
   document.getElementById('pubSortDate').classList.remove('active');
   document.getElementById('pubSortChannel').classList.remove('active');
-  btn.classList.add('active');
-  renderPubPanelArticles();
+  btn.classList.add('active');renderPubPanelArticles();
 }
-
 function closePublication(){document.getElementById('publicationPanel').classList.remove('open');}
+
+// ─── Follow / unfollow ──────────────────────────────────────────────────────────
+function toggleFollow(){
+  if(!currentJournalist)return;
+  var key=currentJournalist.name+'|'+currentJournalist.pub;
+  if(followedJournalists[key]){
+    delete followedJournalists[key];
+    if(sb&&currentUser)sb.from('followed_journalists').delete().eq('user_id',currentUser.id).eq('name',currentJournalist.name).eq('publication',currentJournalist.pub).then(function(){});
+    document.getElementById('followBtn').textContent='Follow';
+    document.getElementById('followBtn').className='follow-btn';
+  }else{
+    followedJournalists[key]=currentJournalist;
+    if(sb&&currentUser)sb.from('followed_journalists').upsert({user_id:currentUser.id,name:currentJournalist.name,publication:currentJournalist.pub}).then(function(){});
+    document.getElementById('followBtn').textContent='Unfollow';
+    document.getElementById('followBtn').className='follow-btn following';
+  }
+  updateFeedBylines(currentJournalist.name,currentJournalist.pub);
+  renderVoices();
+}
 
 function togglePublicationFollow(){
   if(!currentPublication)return;
   var name=currentPublication.name;
   if(followedPublications[name]){
     delete followedPublications[name];
-    if(sb)sb.from('followed_publications').delete().eq('name',name).then(function(){});
+    if(sb&&currentUser)sb.from('followed_publications').delete().eq('user_id',currentUser.id).eq('name',name).then(function(){});
     document.getElementById('pubFollowBtn').textContent='Follow';
     document.getElementById('pubFollowBtn').className='follow-btn';
   }else{
     followedPublications[name]=true;
-    if(sb)sb.from('followed_publications').upsert({name:name}).then(function(){});
+    if(sb&&currentUser)sb.from('followed_publications').upsert({user_id:currentUser.id,name:name}).then(function(){});
     document.getElementById('pubFollowBtn').textContent='Unfollow';
     document.getElementById('pubFollowBtn').className='follow-btn following';
   }
   updateFeedBylinesForPub(name);
-  renderVoices();
-}
-
-function toggleFollow(){
-  if(!currentJournalist)return;
-  var key=currentJournalist.name+'|'+currentJournalist.pub;
-  if(followedJournalists[key]){
-    delete followedJournalists[key];
-    if(sb)sb.from('followed_journalists').delete().eq('name',currentJournalist.name).eq('publication',currentJournalist.pub).then(function(){});
-    document.getElementById('followBtn').textContent='Follow';
-    document.getElementById('followBtn').className='follow-btn';
-  }else{
-    followedJournalists[key]=currentJournalist;
-    if(sb)sb.from('followed_journalists').upsert({name:currentJournalist.name,publication:currentJournalist.pub}).then(function(){});
-    document.getElementById('followBtn').textContent='Unfollow';
-    document.getElementById('followBtn').className='follow-btn following';
-  }
-  updateFeedBylines(currentJournalist.name,currentJournalist.pub);
   renderVoices();
 }
 
@@ -614,6 +1086,7 @@ function updateFeedBylinesForPub(pubName){
   });
 }
 
+// ─── View switching ─────────────────────────────────────────────────────────────
 function switchView(view,btn){
   document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');
@@ -627,10 +1100,7 @@ function switchView(view,btn){
 
 function renderDeck(){
   var el=document.getElementById('deckContent');
-  if(savedCards.length===0){
-    el.innerHTML='<div class="empty-state">No liked cards yet.<br>Tap 👍 on any card to save it here.</div>';
-    return;
-  }
+  if(savedCards.length===0){el.innerHTML='<div class="empty-state">No liked cards yet.<br>Tap ♡ on any card to save it here.</div>';return;}
   el.innerHTML=savedCards.map(function(s,i){
     return '<div class="deck-card">'+
       '<div class="deck-card-header">'+
@@ -647,13 +1117,11 @@ function renderDeck(){
 
 function removeFromDeck(i){
   var url=savedCards[i].url;
-  savedCards.splice(i,1);
-  likedUrls.delete(url);
+  var card=savedCards[i].card;
+  savedCards.splice(i,1);likedUrls.delete(url);
+  if(sb&&currentUser)sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',url).then(function(){});
   document.querySelectorAll('.feed-card').forEach(function(div){
-    if(div.dataset.url===url){
-      var btn=div.querySelector('[data-action="like"]');
-      if(btn)btn.className='like-btn';
-    }
+    if(div.dataset.url===url){var btn=div.querySelector('[data-action="like"]');if(btn)btn.className='like-btn';}
   });
   renderDeck();
 }
@@ -664,17 +1132,11 @@ function renderVoices(){
   var pubs=Object.keys(followedPublications).sort();
   var html='';
   html+='<div class="voices-section-header">Journalists</div>';
-  if(js.length===0){
-    html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed journalists yet.</div>';
-  }else{
-    html+='<div class="roster-section">'+js.map(journalistRosterItem).join('')+'</div>';
-  }
+  if(js.length===0){html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed journalists yet.</div>';}
+  else{html+='<div class="roster-section">'+js.map(journalistRosterItem).join('')+'</div>';}
   html+='<div class="voices-section-header">Publications</div>';
-  if(pubs.length===0){
-    html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed publications yet.</div>';
-  }else{
-    html+='<div class="roster-section">'+pubs.map(pubRosterItem).join('')+'</div>';
-  }
+  if(pubs.length===0){html+='<div style="color:#333;font-size:13px;padding:12px 0 4px;">No followed publications yet.</div>';}
+  else{html+='<div class="roster-section">'+pubs.map(pubRosterItem).join('')+'</div>';}
   el.innerHTML=html;
 }
 
@@ -682,29 +1144,23 @@ function journalistRosterItem(j){
   var init=j.name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
   return '<div class="roster-item" data-name="'+escHtml(j.name)+'" data-pub="'+escHtml(j.pub)+'">'+
     '<div class="roster-avatar" style="border:2px solid #4CAF50;">'+escHtml(init)+'</div>'+
-    '<div class="roster-info">'+
-      '<div class="roster-name">'+escHtml(j.name)+'</div>'+
-      '<div class="roster-pub">'+escHtml(j.pub)+'</div>'+
-    '</div>'+
-    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span>'+
-  '</div>';
+    '<div class="roster-info"><div class="roster-name">'+escHtml(j.name)+'</div><div class="roster-pub">'+escHtml(j.pub)+'</div></div>'+
+    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span></div>';
 }
 
 function pubRosterItem(name){
   var init=name.split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
   return '<div class="roster-item" data-pub-name="'+escHtml(name)+'">'+
     '<div class="roster-avatar" style="border:2px solid #4CAF50;">'+escHtml(init)+'</div>'+
-    '<div class="roster-info">'+
-      '<div class="roster-name">'+escHtml(name)+'</div>'+
-    '</div>'+
-    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span>'+
-  '</div>';
+    '<div class="roster-info"><div class="roster-name">'+escHtml(name)+'</div></div>'+
+    '<span style="color:#333;font-size:16px;padding-left:8px;">›</span></div>';
 }
 
 function renderArchive(){
   document.getElementById('archiveContent').innerHTML='<div class="empty-state">Your archive will appear here.<br>Liked cards move here at the end of each day.</div>';
 }
 
+// ─── Channel navigation ─────────────────────────────────────────────────────────
 var navLock=false;
 
 function navigateChannel(dir,W,preBuiltPage){
@@ -719,59 +1175,37 @@ function navigateChannel(dir,W,preBuiltPage){
     activeChannel=channels[nextIdx];
     document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
     var btns=document.querySelectorAll('.channel-btn');
-    if(btns[nextIdx]){
-      btns[nextIdx].classList.add('active');
-      btns[nextIdx].scrollIntoView({block:'nearest',inline:'center'});
-    }
+    if(btns[nextIdx]){btns[nextIdx].classList.add('active');btns[nextIdx].scrollIntoView({block:'nearest',inline:'center'});}
     if(preBuiltPage){
-      // Neighbor already rendered and dragged — animate both to final positions
       page.style.transition='transform 0.22s ease-out';
       page.style.transform='translateX('+(dir>0?-W:W)+'px)';
       preBuiltPage.style.transition='transform 0.22s ease-out';
       preBuiltPage.style.transform='translateX(0)';
       setTimeout(function(){
         try{
-          page.innerHTML='';
-          page.style.transition='none';
-          page.style.transform='translateX(0)';
+          page.innerHTML='';page.style.transition='none';page.style.transform='translateX(0)';
           while(preBuiltPage.firstChild)page.appendChild(preBuiltPage.firstChild);
           if(preBuiltPage.parentNode)preBuiltPage.parentNode.removeChild(preBuiltPage);
           navLock=false;
         }catch(e){
-          console.error('[Binder] nav swap error:',e);
-          buildPageContent(page,activeChannel);
-          page.style.transition='none';page.style.transform='translateX(0)';
-          navLock=false;
+          buildPageContent(page,activeChannel);page.style.transition='none';page.style.transform='translateX(0)';navLock=false;
         }
       },240);
     }else{
-      // No pre-built neighbor — slide out, rebuild, slide in
       page.style.transition='transform 0.18s ease-in';
       page.style.transform='translateX('+(dir>0?-W:W)+'px)';
       setTimeout(function(){
         try{
           buildPageContent(page,activeChannel);
-          page.style.transition='none';
-          page.style.transform='translateX('+(dir>0?W:-W)+'px)';
-          requestAnimationFrame(function(){
-            requestAnimationFrame(function(){
-              page.style.transition='transform 0.22s ease-out';
-              page.style.transform='translateX(0)';
-              setTimeout(function(){navLock=false;},240);
-            });
-          });
-        }catch(e){
-          console.error('[Binder] nav swap error:',e);
-          page.style.transition='none';page.style.transform='translateX(0)';
-          navLock=false;
-        }
+          page.style.transition='none';page.style.transform='translateX('+(dir>0?W:-W)+'px)';
+          requestAnimationFrame(function(){requestAnimationFrame(function(){
+            page.style.transition='transform 0.22s ease-out';page.style.transform='translateX(0)';
+            setTimeout(function(){navLock=false;},240);
+          });});
+        }catch(e){page.style.transition='none';page.style.transform='translateX(0)';navLock=false;}
       },190);
     }
-  }catch(err){
-    console.error('[Binder] navigateChannel error:',err);
-    page.style.transition='none';page.style.transform='translateX(0)';
-    navLock=false;
-  }
+  }catch(err){page.style.transition='none';page.style.transform='translateX(0)';navLock=false;}
 }
 
 (function(){
@@ -787,13 +1221,9 @@ function navigateChannel(dir,W,preBuiltPage){
 
   content.addEventListener('touchstart',function(e){
     if(navLock)return;
-    startX=e.touches[0].clientX;
-    startY=e.touches[0].clientY;
-    startTime=Date.now();
-    lock=null;
-    W=content.offsetWidth;
-    page.style.transition='none';
-    destroyNeighbor();
+    startX=e.touches[0].clientX;startY=e.touches[0].clientY;
+    startTime=Date.now();lock=null;W=content.offsetWidth;
+    page.style.transition='none';destroyNeighbor();
   },{passive:true});
 
   content.addEventListener('touchmove',function(e){
@@ -829,15 +1259,10 @@ function navigateChannel(dir,W,preBuiltPage){
       var velocity=elapsed>0?Math.abs(dx)/elapsed:0;
       var goNext=dx<-(W*0.28)||(dx<-20&&velocity>0.3);
       var goPrev=dx>(W*0.28)||(dx>20&&velocity>0.3);
-      if(goNext&&neighborDir===1){
-        var nb=pageNeighbor;pageNeighbor=null;
-        navigateChannel(1,W,nb);
-      }else if(goPrev&&neighborDir===-1){
-        var nb=pageNeighbor;pageNeighbor=null;
-        navigateChannel(-1,W,nb);
-      }else{
-        page.style.transition='transform 0.28s ease-out';
-        page.style.transform='translateX(0)';
+      if(goNext&&neighborDir===1){var nb=pageNeighbor;pageNeighbor=null;navigateChannel(1,W,nb);}
+      else if(goPrev&&neighborDir===-1){var nb=pageNeighbor;pageNeighbor=null;navigateChannel(-1,W,nb);}
+      else{
+        page.style.transition='transform 0.28s ease-out';page.style.transform='translateX(0)';
         if(pageNeighbor){
           pageNeighbor.style.transition='transform 0.28s ease-out';
           pageNeighbor.style.transform='translateX('+(neighborDir>0?W:-W)+'px)';
@@ -845,17 +1270,11 @@ function navigateChannel(dir,W,preBuiltPage){
           setTimeout(function(){if(nb.parentNode)nb.parentNode.removeChild(nb);},300);
         }
       }
-    }catch(err){
-      console.error('[Binder] swipe error:',err);
-      page.style.transition='none';page.style.transform='translateX(0)';
-      destroyNeighbor();
-    }
+    }catch(err){page.style.transition='none';page.style.transform='translateX(0)';destroyNeighbor();}
   },{passive:true});
 
   content.addEventListener('touchcancel',function(){
-    lock=null;
-    page.style.transition='transform 0.22s ease-out';
-    page.style.transform='translateX(0)';
+    lock=null;page.style.transition='transform 0.22s ease-out';page.style.transform='translateX(0)';
     if(pageNeighbor){
       pageNeighbor.style.transition='transform 0.22s ease-out';
       pageNeighbor.style.transform='translateX('+(neighborDir>0?W:-W)+'px)';
@@ -866,6 +1285,15 @@ function navigateChannel(dir,W,preBuiltPage){
   },{passive:true});
 })();
 
+// ─── Roster event delegation ────────────────────────────────────────────────────
+document.getElementById('rosterContent').addEventListener('click',function(e){
+  var jItem=e.target.closest('.roster-item[data-name]');
+  if(jItem){openRosterJournalist(jItem.dataset.name,jItem.dataset.pub);return;}
+  var pItem=e.target.closest('.roster-item[data-pub-name]');
+  if(pItem){openRosterPublication(pItem.dataset.pubName);}
+});
+
+// ─── Refresh timer ──────────────────────────────────────────────────────────────
 var timerLoading=false;
 function getNextRunMs(){
   var etDate=new Date(Date.now()-(4*3600*1000));
@@ -879,10 +1307,8 @@ function updateTimer(){
   if(!el)return;
   var ms=getNextRunMs();
   if(ms<5000){
-    timerLoading=true;
-    el.textContent='Refreshing...';
-    loadCards().then(function(){timerLoading=false;},function(){timerLoading=false;});
-    return;
+    timerLoading=true;el.textContent='Refreshing...';
+    loadCards().then(function(){timerLoading=false;},function(){timerLoading=false;});return;
   }
   var sec=Math.floor(ms/1000);
   var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
@@ -891,14 +1317,8 @@ function updateTimer(){
 setInterval(updateTimer,1000);
 updateTimer();
 
-document.getElementById('rosterContent').addEventListener('click',function(e){
-  var jItem=e.target.closest('.roster-item[data-name]');
-  if(jItem){openRosterJournalist(jItem.dataset.name,jItem.dataset.pub);return;}
-  var pItem=e.target.closest('.roster-item[data-pub-name]');
-  if(pItem){openRosterPublication(pItem.dataset.pubName);}
-});
-
-loadCards();
+// ─── Init ───────────────────────────────────────────────────────────────────────
+initAuth();
 </script>
 </body>
 </html>
