@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Binder Admin</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+/* Password gate */
+#gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+.gate-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.3px; }
+.gate-sub { font-size: 13px; color: #444; margin-bottom: 32px; }
+.gate-input { width: 260px; padding: 12px 16px; background: #111; border: 1px solid #222; border-radius: 10px; color: #f0f0f0; font-size: 15px; outline: none; margin-bottom: 10px; -webkit-appearance: none; text-align: center; }
+.gate-input:focus { border-color: #333; }
+.gate-btn { width: 260px; padding: 12px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.gate-btn:active { opacity: 0.85; }
+.gate-error { font-size: 12px; color: #e05a5a; margin-top: 8px; min-height: 18px; }
+
+/* Dashboard */
+#dashboard { display: none; }
+.dash-header { padding: 20px 24px 16px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #0a0a0a; z-index: 10; }
+.dash-header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+.dash-header-right { display: flex; align-items: center; gap: 12px; }
+.dash-updated { font-size: 11px; color: #444; }
+.dash-btn { padding: 6px 14px; background: #1a1a1a; border: 1px solid #252525; border-radius: 8px; color: #888; font-size: 12px; cursor: pointer; }
+.dash-btn:hover { color: #ccc; }
+.dash-body { padding: 24px; max-width: 1000px; margin: 0 auto; }
+
+/* Stat grid */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.stat-card { background: #111; border: 1px solid #1a1a1a; border-radius: 14px; padding: 16px 18px; }
+.stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: #444; margin-bottom: 8px; }
+.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #f0f0f0; line-height: 1; }
+.stat-sub { font-size: 11px; color: #555; margin-top: 5px; }
+
+/* Section */
+.section { margin-bottom: 32px; }
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; margin-bottom: 12px; }
+
+/* Survey */
+.survey-row { display: flex; gap: 10px; }
+.survey-card { flex: 1; background: #111; border: 1px solid #1a1a1a; border-radius: 12px; padding: 16px; text-align: center; }
+.survey-response { font-size: 13px; color: #888; margin-bottom: 6px; }
+.survey-pct { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.survey-count { font-size: 11px; color: #444; margin-top: 4px; }
+.survey-card.better .survey-pct { color: #4CAF50; }
+.survey-card.same .survey-pct { color: #888; }
+.survey-card.worse .survey-pct { color: #e05a5a; }
+
+/* DAU table */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th { text-align: left; padding: 8px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #444; border-bottom: 1px solid #1a1a1a; font-weight: 500; }
+.data-table td { padding: 10px 12px; border-bottom: 1px solid #111; color: #ccc; }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table td.num { color: #888; font-variant-numeric: tabular-nums; }
+.data-table td.highlight { color: #f0f0f0; font-weight: 500; }
+.completion-bar { display: inline-block; height: 3px; background: #4CAF50; border-radius: 2px; vertical-align: middle; margin-left: 8px; max-width: 60px; }
+
+/* Top liked */
+.liked-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #111; }
+.liked-item:last-child { border-bottom: none; }
+.liked-rank { font-size: 12px; color: #333; width: 20px; flex-shrink: 0; padding-top: 1px; }
+.liked-body { flex: 1; min-width: 0; }
+.liked-insight { font-size: 13px; color: #ccc; line-height: 1.5; margin-bottom: 4px; }
+.liked-meta { font-size: 11px; color: #444; }
+.liked-count { font-size: 13px; font-weight: 600; color: #f0f0f0; flex-shrink: 0; min-width: 28px; text-align: right; }
+
+.loading { color: #333; font-size: 13px; padding: 20px 0; }
+.empty { color: #2a2a2a; font-size: 13px; padding: 20px 0; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-title">Binder Admin</div>
+  <div class="gate-sub">Internal metrics dashboard</div>
+  <input class="gate-input" id="pwInput" type="password" placeholder="Password" autocomplete="off">
+  <button class="gate-btn" onclick="checkPassword()">Enter</button>
+  <div class="gate-error" id="gateError"></div>
+</div>
+
+<div id="dashboard">
+  <div class="dash-header">
+    <h1>Binder Admin</h1>
+    <div class="dash-header-right">
+      <span class="dash-updated" id="updatedAt"></span>
+      <button class="dash-btn" onclick="loadAll()">Refresh</button>
+      <button class="dash-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+  <div class="dash-body">
+
+    <div class="section">
+      <div class="section-title">Overview</div>
+      <div class="stat-grid" id="statGrid">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Survey — Better than headlines?</div>
+      <div id="surveySection"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Daily active users — last 30 days</div>
+      <div id="dauSection"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Top liked articles</div>
+      <div id="likedSection"><div class="loading">Loading...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+var SUPABASE_URL='https://nbiwbvqbtyqvuzaklvcx.supabase.co';
+var SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaXdidnFidHlxdnV6YWtsdmN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNzA0NTcsImV4cCI6MjA5MjY0NjQ1N30.pooWsM3kVOcYb790LsEh5RQyJyn8g4mI28gsoXweW64';
+var ADMIN_PASSWORD='binderadmin';
+var SESSION_KEY='binder_admin_auth';
+
+var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+function checkPassword(){
+  var val=document.getElementById('pwInput').value;
+  if(val===ADMIN_PASSWORD){
+    sessionStorage.setItem(SESSION_KEY,'1');
+    showDashboard();
+  }else{
+    document.getElementById('gateError').textContent='Incorrect password.';
+    document.getElementById('pwInput').value='';
+    document.getElementById('pwInput').focus();
+  }
+}
+document.getElementById('pwInput').addEventListener('keydown',function(e){if(e.key==='Enter')checkPassword();});
+
+function signOut(){
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('gate').style.display='flex';
+  document.getElementById('pwInput').value='';
+}
+
+function showDashboard(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  loadAll();
+}
+
+async function loadAll(){
+  document.getElementById('updatedAt').textContent='Refreshing...';
+  await Promise.all([loadStats(),loadSurvey(),loadDau(),loadTopLiked()]);
+  document.getElementById('updatedAt').textContent='Updated '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+}
+
+function fmt(n){return n===null||n===undefined?'—':Number(n).toLocaleString();}
+function pctFmt(n){return n===null||n===undefined?'—':Number(n).toFixed(0)+'%';}
+
+async function loadStats(){
+  var el=document.getElementById('statGrid');
+  try{
+    var res=await sb.rpc('admin_stats');
+    if(res.error)throw res.error;
+    var d=res.data;
+    var compRate=d.avg_completion_7d?Math.round(d.avg_completion_7d*100)+'%':'—';
+    el.innerHTML=
+      statCard('Today\'s users',fmt(d.dau_today),'daily active')+
+      statCard('Yesterday',fmt(d.dau_yesterday),'daily active')+
+      statCard('Completion',compRate,'avg last 7 days')+
+      statCard('Total users',fmt(d.total_users),'all time')+
+      statCard('Total signals',fmt(d.total_signals),'all time')+
+      statCard('Total likes',fmt(d.total_likes),'all time')+
+      statCard('Surveys',fmt(d.total_surveys),'responses');
+  }catch(e){
+    el.innerHTML='<div class="empty">Could not load stats: '+escHtml(e.message)+'</div>';
+  }
+}
+
+function statCard(label,value,sub){
+  return '<div class="stat-card"><div class="stat-label">'+escHtml(label)+'</div>'+
+    '<div class="stat-value">'+escHtml(String(value))+'</div>'+
+    '<div class="stat-sub">'+escHtml(sub)+'</div></div>';
+}
+
+async function loadSurvey(){
+  var el=document.getElementById('surveySection');
+  try{
+    var res=await sb.rpc('admin_survey_breakdown');
+    if(res.error)throw res.error;
+    if(!res.data||res.data.length===0){el.innerHTML='<div class="empty">No survey responses yet.</div>';return;}
+    var map={};res.data.forEach(function(r){map[r.response]=r;});
+    var order=[{key:'yes',label:'Better',cls:'better'},{key:'same',label:'Same',cls:'same'},{key:'worse',label:'Worse',cls:'worse'}];
+    var html='<div class="survey-row">';
+    order.forEach(function(o){
+      var r=map[o.key]||{count:0,pct:0};
+      html+='<div class="survey-card '+o.cls+'">'+
+        '<div class="survey-response">'+o.label+'</div>'+
+        '<div class="survey-pct">'+pctFmt(r.pct)+'</div>'+
+        '<div class="survey-count">'+fmt(r.count)+' responses</div>'+
+      '</div>';
+    });
+    html+='</div>';
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<div class="empty">Could not load survey data: '+escHtml(e.message)+'</div>';
+  }
+}
+
+async function loadDau(){
+  var el=document.getElementById('dauSection');
+  try{
+    var res=await sb.rpc('admin_dau_table');
+    if(res.error)throw res.error;
+    if(!res.data||res.data.length===0){el.innerHTML='<div class="empty">No session data yet.</div>';return;}
+    var html='<table class="data-table">'+
+      '<thead><tr>'+
+        '<th>Date</th><th>Users</th><th>Completion</th><th>Expands</th><th>Article clicks</th><th>Likes</th>'+
+      '</tr></thead><tbody>';
+    res.data.forEach(function(r){
+      var compPct=r.avg_completion!==null?Math.round(r.avg_completion*100):null;
+      var barW=compPct!==null?Math.min(compPct,100):0;
+      html+='<tr>'+
+        '<td class="highlight">'+escHtml(formatDay(r.day))+'</td>'+
+        '<td class="highlight">'+fmt(r.dau)+'</td>'+
+        '<td class="num">'+(compPct!==null?compPct+'%<span class="completion-bar" style="width:'+barW+'px"></span>':'—')+'</td>'+
+        '<td class="num">'+fmt(r.total_expands)+'</td>'+
+        '<td class="num">'+fmt(r.total_clicks)+'</td>'+
+        '<td class="num">'+fmt(r.total_likes)+'</td>'+
+      '</tr>';
+    });
+    html+='</tbody></table>';
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<div class="empty">Could not load DAU data: '+escHtml(e.message)+'</div>';
+  }
+}
+
+async function loadTopLiked(){
+  var el=document.getElementById('likedSection');
+  try{
+    var res=await sb.rpc('admin_top_liked',{n:15});
+    if(res.error)throw res.error;
+    if(!res.data||res.data.length===0){el.innerHTML='<div class="empty">No likes yet.</div>';return;}
+    var html='';
+    res.data.forEach(function(r,i){
+      var insight=r.insight||r.url||'(no insight)';
+      var meta=(r.channel?escHtml(r.channel)+' · ':'')+(r.source?escHtml(r.source):'');
+      html+='<div class="liked-item">'+
+        '<div class="liked-rank">'+(i+1)+'</div>'+
+        '<div class="liked-body">'+
+          '<div class="liked-insight">'+escHtml(insight)+'</div>'+
+          '<div class="liked-meta">'+meta+'</div>'+
+        '</div>'+
+        '<div class="liked-count">'+fmt(r.like_count)+'</div>'+
+      '</div>';
+    });
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<div class="empty">Could not load likes: '+escHtml(e.message)+'</div>';
+  }
+}
+
+function formatDay(dateStr){
+  var d=new Date(dateStr+'T12:00:00');
+  var today=new Date().toISOString().split('T')[0];
+  var yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  if(dateStr===today)return'Today';
+  if(dateStr===yesterday)return'Yesterday';
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Auto-enter if session exists
+if(sessionStorage.getItem(SESSION_KEY)==='1') showDashboard();
+</script>
+</body>
+</html>
