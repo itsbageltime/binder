@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const NEWSAPI_KEY = process.env.NEWSAPI_KEY;
 
 const client = new Anthropic({ apiKey: ANTHROPIC_KEY });
 const supabase = (SUPABASE_URL !== 'YOUR_SUPABASE_URL')
@@ -495,6 +496,58 @@ async function loadFollowedJournalists() {
   }
 }
 
+const HARDCODED_CHANNELS = new Set(channels.map(c => c.name));
+
+async function loadCustomChannels() {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.from('profiles').select('channels');
+    if (error || !data) return [];
+    const custom = new Set();
+    data.forEach(profile => {
+      (profile.channels || []).forEach(ch => {
+        if (ch && !HARDCODED_CHANNELS.has(ch)) custom.add(ch);
+      });
+    });
+    return Array.from(custom);
+  } catch(e) {
+    console.warn('Could not load custom channels:', e.message);
+    return [];
+  }
+}
+
+async function fetchNewsApiArticles(query) {
+  if (!NEWSAPI_KEY) {
+    console.warn('  NEWSAPI_KEY not set — skipping "' + query + '"');
+    return [];
+  }
+  try {
+    const url = 'https://newsapi.org/v2/everything?q=' + encodeURIComponent(query) +
+      '&language=en&sortBy=publishedAt&pageSize=20&apiKey=' + NEWSAPI_KEY;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) {
+      console.warn('  NewsAPI HTTP ' + res.status + ' for "' + query + '"');
+      return [];
+    }
+    const json = await res.json();
+    if (json.status !== 'ok' || !Array.isArray(json.articles)) return [];
+    return json.articles
+      .filter(a => a.title && a.description && a.url && a.title !== '[Removed]')
+      .slice(0, ARTICLES_PER_FEED)
+      .map(a => ({
+        title: a.title || '',
+        description: (a.description || '').slice(0, 400),
+        url: a.url || '',
+        pubDate: a.publishedAt || '',
+        source: (a.source && a.source.name) || 'Unknown',
+        author: a.author || 'Unknown',
+      }));
+  } catch(e) {
+    console.warn('  NewsAPI fetch error for "' + query + '":', e.message);
+    return [];
+  }
+}
+
 async function run() {
   console.log('Building Binder pipeline...\n');
   const followed = await loadFollowedJournalists();
@@ -518,7 +571,25 @@ async function run() {
       }
     }
   }
-  console.log('Processing ' + queue.length + ' articles (concurrency: 5)...\n');
+  // Phase 1b: custom channels via NewsAPI
+  const customChannelNames = await loadCustomChannels();
+  if (customChannelNames.length > 0) {
+    console.log('\nCustom channels: ' + customChannelNames.join(', '));
+    for (const channelName of customChannelNames) {
+      const articles = await fetchNewsApiArticles(channelName);
+      let added = 0;
+      for (const article of articles) {
+        if (!article.title || !article.description) continue;
+        if (seenUrls.has(article.url)) continue;
+        seenUrls.add(article.url);
+        queue.push({ article, channelName });
+        added++;
+      }
+      console.log('  "' + channelName + '": ' + added + ' new articles');
+    }
+  }
+
+  console.log('\nProcessing ' + queue.length + ' articles (concurrency: 10)...\n');
 
   // Bio promise cache — one API call per journalist regardless of concurrency
   const bioPending = new Map();
@@ -568,6 +639,10 @@ async function run() {
   for (const channel of channels) {
     const lines = outputByChannel[channel.name];
     if (lines && lines.length) { output.push('\n=== ' + channel.name.toUpperCase() + ' ===\n', ...lines); }
+  }
+  for (const channelName of customChannelNames) {
+    const lines = outputByChannel[channelName];
+    if (lines && lines.length) { output.push('\n=== ' + channelName.toUpperCase() + ' (custom) ===\n', ...lines); }
   }
 
   cards.sort((a, b) => b.score - a.score);
