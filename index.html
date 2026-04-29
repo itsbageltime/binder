@@ -239,8 +239,7 @@ function formatRunLabel(runDate,createdAt){
   var timeStr='';
   if(createdAt){
     var d=new Date(createdAt);
-    var etStr=d.toLocaleString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
-    timeStr=' '+etStr.toLowerCase().replace(' ','');
+    timeStr=' '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','');
   }
   if(runDate===today)return'Today '+timeStr;
   if(runDate===yesterday)return'Yesterday '+timeStr;
@@ -282,15 +281,17 @@ function buildPageContent(el,channelName){
   var runDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a);});
   el.innerHTML='';
   if(runDates.length===0){el.innerHTML='<div class="empty-state">No cards yet.</div>';return;}
-  runDates.forEach(function(runDate){
+  runDates.forEach(function(runDate,i){
     var batch=groups[runDate];
     batch.sort(function(a,b){return b._pScore-a._pScore;});
-    var divider=document.createElement('div');
-    divider.className='run-divider';
-    divider.innerHTML='<div class="run-divider-line"></div>'+
-      '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,runTimestamps[runDate]||''))+'</span>'+
-      '<div class="run-divider-line"></div>';
-    el.appendChild(divider);
+    if(i>0){
+      var divider=document.createElement('div');
+      divider.className='run-divider';
+      divider.innerHTML='<div class="run-divider-line"></div>'+
+        '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,runTimestamps[runDate]||''))+'</span>'+
+        '<div class="run-divider-line"></div>';
+      el.appendChild(divider);
+    }
     batch.forEach(function(c){el.appendChild(createCardEl(c));});
   });
 }
