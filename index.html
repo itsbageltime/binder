@@ -753,7 +753,11 @@ function buildPageContent(el,channelName){
   var runDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a);});
   el.innerHTML='';
   if(runDates.length===0){
-    el.innerHTML='<div class="empty-state">No cards yet.</div>';
+    var isCustom=channelName!=='all'&&CHANNEL_DEFS.every(function(c){return c.name!==channelName;});
+    var emptyMsg=isCustom
+      ?'Your <em>'+escHtml(channelName)+'</em> channel is ready.<br>Fresh cards will appear at the next pipeline run — check back soon.'
+      :'No cards yet.';
+    el.innerHTML='<div class="empty-state">'+emptyMsg+'</div>';
     appendSurvey(el);
     return;
   }
