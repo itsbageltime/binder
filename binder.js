@@ -523,7 +523,7 @@ async function fetchNewsApiArticles(query) {
   }
   try {
     const url = 'https://newsapi.org/v2/everything?q=' + encodeURIComponent(query) +
-      '&language=en&sortBy=publishedAt&pageSize=20&apiKey=' + NEWSAPI_KEY;
+      '&language=en&sortBy=publishedAt&pageSize=100&apiKey=' + NEWSAPI_KEY;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn('  NewsAPI HTTP ' + res.status + ' for "' + query + '"');
@@ -533,7 +533,7 @@ async function fetchNewsApiArticles(query) {
     if (json.status !== 'ok' || !Array.isArray(json.articles)) return [];
     return json.articles
       .filter(a => a.title && a.description && a.url && a.title !== '[Removed]')
-      .slice(0, ARTICLES_PER_FEED)
+      .slice(0, 50)
       .map(a => ({
         title: a.title || '',
         description: (a.description || '').slice(0, 400),
