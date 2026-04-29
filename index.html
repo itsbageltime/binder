@@ -707,7 +707,7 @@ function renderArchive(){
 
 var navLock=false;
 
-function navigateChannel(dir,W){
+function navigateChannel(dir,W,preBuiltPage){
   if(navLock)return;
   navLock=true;
   var page=document.getElementById('pageCurrent');
@@ -723,27 +723,50 @@ function navigateChannel(dir,W){
       btns[nextIdx].classList.add('active');
       btns[nextIdx].scrollIntoView({block:'nearest',inline:'center'});
     }
-    // Slide current content off in swipe direction, then swap and slide new in
-    page.style.transition='transform 0.18s ease-in';
-    page.style.transform='translateX('+(dir>0?-W:W)+'px)';
-    setTimeout(function(){
-      try{
-        buildPageContent(page,activeChannel);
-        page.style.transition='none';
-        page.style.transform='translateX('+(dir>0?W:-W)+'px)';
-        requestAnimationFrame(function(){
+    if(preBuiltPage){
+      // Neighbor already rendered and dragged — animate both to final positions
+      page.style.transition='transform 0.22s ease-out';
+      page.style.transform='translateX('+(dir>0?-W:W)+'px)';
+      preBuiltPage.style.transition='transform 0.22s ease-out';
+      preBuiltPage.style.transform='translateX(0)';
+      setTimeout(function(){
+        try{
+          page.innerHTML='';
+          page.style.transition='none';
+          page.style.transform='translateX(0)';
+          while(preBuiltPage.firstChild)page.appendChild(preBuiltPage.firstChild);
+          if(preBuiltPage.parentNode)preBuiltPage.parentNode.removeChild(preBuiltPage);
+          navLock=false;
+        }catch(e){
+          console.error('[Binder] nav swap error:',e);
+          buildPageContent(page,activeChannel);
+          page.style.transition='none';page.style.transform='translateX(0)';
+          navLock=false;
+        }
+      },240);
+    }else{
+      // No pre-built neighbor — slide out, rebuild, slide in
+      page.style.transition='transform 0.18s ease-in';
+      page.style.transform='translateX('+(dir>0?-W:W)+'px)';
+      setTimeout(function(){
+        try{
+          buildPageContent(page,activeChannel);
+          page.style.transition='none';
+          page.style.transform='translateX('+(dir>0?W:-W)+'px)';
           requestAnimationFrame(function(){
-            page.style.transition='transform 0.22s ease-out';
-            page.style.transform='translateX(0)';
-            setTimeout(function(){navLock=false;},240);
+            requestAnimationFrame(function(){
+              page.style.transition='transform 0.22s ease-out';
+              page.style.transform='translateX(0)';
+              setTimeout(function(){navLock=false;},240);
+            });
           });
-        });
-      }catch(e){
-        console.error('[Binder] nav swap error:',e);
-        page.style.transition='none';page.style.transform='translateX(0)';
-        navLock=false;
-      }
-    },190);
+        }catch(e){
+          console.error('[Binder] nav swap error:',e);
+          page.style.transition='none';page.style.transform='translateX(0)';
+          navLock=false;
+        }
+      },190);
+    }
   }catch(err){
     console.error('[Binder] navigateChannel error:',err);
     page.style.transition='none';page.style.transform='translateX(0)';
@@ -753,8 +776,14 @@ function navigateChannel(dir,W){
 
 (function(){
   var startX=0,startY=0,startTime=0,lock=null,W=0;
+  var neighborDir=0,pageNeighbor=null;
   var content=document.getElementById('feedContent');
   var page=document.getElementById('pageCurrent');
+
+  function destroyNeighbor(){
+    if(pageNeighbor&&pageNeighbor.parentNode)pageNeighbor.parentNode.removeChild(pageNeighbor);
+    pageNeighbor=null;neighborDir=0;
+  }
 
   content.addEventListener('touchstart',function(e){
     if(navLock)return;
@@ -762,8 +791,9 @@ function navigateChannel(dir,W){
     startY=e.touches[0].clientY;
     startTime=Date.now();
     lock=null;
-    W=content.offsetWidth;        // cache once here, never read in touchmove
+    W=content.offsetWidth;
     page.style.transition='none';
+    destroyNeighbor();
   },{passive:true});
 
   content.addEventListener('touchmove',function(e){
@@ -772,30 +802,53 @@ function navigateChannel(dir,W){
     var dy=e.touches[0].clientY-startY;
     if(!lock&&(Math.abs(dx)>8||Math.abs(dy)>8)){
       lock=Math.abs(dx)>Math.abs(dy)?'h':'v';
+      if(lock==='h'){
+        neighborDir=dx<0?1:-1;
+        var channels=getChannelList();
+        var idx=Math.max(0,channels.indexOf(activeChannel));
+        var nextIdx=(idx+neighborDir+channels.length)%channels.length;
+        pageNeighbor=document.createElement('div');
+        pageNeighbor.className='feed-page';
+        pageNeighbor.style.cssText='position:absolute;inset:0;overflow-y:hidden;padding:10px 16px 32px;transform:translateX('+(neighborDir>0?W:-W)+'px);transition:none;pointer-events:none;';
+        content.appendChild(pageNeighbor);
+        buildPageContent(pageNeighbor,channels[nextIdx]);
+      }
     }
     if(lock==='h'){
-      e.preventDefault();                          // called on EVERY horizontal move
-      page.style.transform='translateX('+dx+'px)'; // finger-tracking drag
+      e.preventDefault();
+      page.style.transform='translateX('+dx+'px)';
+      if(pageNeighbor)pageNeighbor.style.transform='translateX('+(dx+(neighborDir>0?W:-W))+'px)';
     }
   },{passive:false});
 
   content.addEventListener('touchend',function(e){
-    if(navLock||lock!=='h')return;
+    if(navLock||lock!=='h'){destroyNeighbor();return;}
     try{
       var dx=e.changedTouches[0].clientX-startX;
       var elapsed=Date.now()-startTime;
       var velocity=elapsed>0?Math.abs(dx)/elapsed:0;
-      if(dx<-(W*0.28)||(dx<-20&&velocity>0.3)){
-        navigateChannel(1,W);
-      }else if(dx>(W*0.28)||(dx>20&&velocity>0.3)){
-        navigateChannel(-1,W);
+      var goNext=dx<-(W*0.28)||(dx<-20&&velocity>0.3);
+      var goPrev=dx>(W*0.28)||(dx>20&&velocity>0.3);
+      if(goNext&&neighborDir===1){
+        var nb=pageNeighbor;pageNeighbor=null;
+        navigateChannel(1,W,nb);
+      }else if(goPrev&&neighborDir===-1){
+        var nb=pageNeighbor;pageNeighbor=null;
+        navigateChannel(-1,W,nb);
       }else{
         page.style.transition='transform 0.28s ease-out';
         page.style.transform='translateX(0)';
+        if(pageNeighbor){
+          pageNeighbor.style.transition='transform 0.28s ease-out';
+          pageNeighbor.style.transform='translateX('+(neighborDir>0?W:-W)+'px)';
+          var nb=pageNeighbor;pageNeighbor=null;
+          setTimeout(function(){if(nb.parentNode)nb.parentNode.removeChild(nb);},300);
+        }
       }
     }catch(err){
       console.error('[Binder] swipe error:',err);
       page.style.transition='none';page.style.transform='translateX(0)';
+      destroyNeighbor();
     }
   },{passive:true});
 
@@ -803,6 +856,13 @@ function navigateChannel(dir,W){
     lock=null;
     page.style.transition='transform 0.22s ease-out';
     page.style.transform='translateX(0)';
+    if(pageNeighbor){
+      pageNeighbor.style.transition='transform 0.22s ease-out';
+      pageNeighbor.style.transform='translateX('+(neighborDir>0?W:-W)+'px)';
+      var nb=pageNeighbor;pageNeighbor=null;
+      setTimeout(function(){if(nb.parentNode)nb.parentNode.removeChild(nb);},250);
+    }
+    neighborDir=0;
   },{passive:true});
 })();
 
