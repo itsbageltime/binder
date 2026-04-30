@@ -11,10 +11,17 @@ header { padding: 16px 20px 8px; display: flex; align-items: center; justify-con
 header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 header .date { font-size: 12px; color: #555; }
 .header-user { width: 28px; height: 28px; border-radius: 50%; background: #1e1e1e; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; flex-shrink: 0; }
-.signout-popover { position: absolute; top: 52px; right: 16px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 4px; z-index: 50; display: none; }
+.signout-popover { position: absolute; top: 52px; right: 16px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 0; z-index: 50; display: none; min-width: 210px; overflow: hidden; }
 .signout-popover.open { display: block; }
-.signout-popover button { display: block; width: 100%; padding: 8px 14px; background: none; border: none; color: #888; font-size: 13px; cursor: pointer; text-align: left; border-radius: 6px; white-space: nowrap; }
-.signout-popover button:hover { background: #222; color: #ccc; }
+.settings-user-info { padding: 14px 16px 12px; }
+.settings-username { font-size: 14px; font-weight: 600; color: #e0e0e0; }
+.settings-email { font-size: 12px; color: #444; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-divider { height: 1px; background: #222; margin: 0; }
+.settings-menu-items { padding: 4px 0; }
+.signout-popover button { display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: #888; font-size: 13px; cursor: pointer; text-align: left; white-space: nowrap; }
+.signout-popover button:active { background: #222; }
+.signout-popover button.danger { color: #c04040; }
+.signout-popover button.danger:active { background: #1e1212; }
 .nav { display: flex; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
 .nav-btn { flex: 1; padding: 10px; background: none; border: none; color: #444; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; border-bottom: 2px solid transparent; }
 .nav-btn.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
@@ -229,9 +236,16 @@ header .date { font-size: 12px; color: #555; }
   <span class="date" id="dateLabel"></span>
   <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   <div class="signout-popover" id="signoutPopover">
-    <button onclick="showSettingsChannels()">Edit channels</button>
-    <button onclick="openChannelReorder()">Reorder channels</button>
-    <button onclick="handleSignOut()">Sign out</button>
+    <div class="settings-user-info">
+      <div class="settings-username" id="settingsUsername"></div>
+      <div class="settings-email" id="settingsEmail"></div>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-menu-items">
+      <button onclick="showSettingsChannels()">Add or remove channels</button>
+      <button onclick="openChannelReorder()">Reorder channels</button>
+      <button class="danger" onclick="handleSignOut()">Sign out</button>
+    </div>
   </div>
 </header>
 <div class="nav">
@@ -323,6 +337,10 @@ var seenCardUrls=new Set();
 var completedCardUrls=new Set();
 var surveyAnsweredToday=false;
 
+// ─── Return-from-article state ────────────────────────────────────────────────
+var expandedCardUrl=null;
+var savedFeedScrollTop=0;
+
 // ─── Channel definitions ───────────────────────────────────────────────────────
 var CHANNEL_DEFS=[
   {name:'Architecture',desc:'Buildings, spaces, and the people who design them'},
@@ -370,6 +388,8 @@ function initAuth(){
   sb.auth.onAuthStateChange(function(event,session){
     if(session&&session.user){
       currentUser=session.user;
+      // TOKEN_REFRESHED fires when returning from Safari — don't re-render the feed
+      if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')return;
       document.getElementById('authOverlay').style.display='none';
       loadProfile().then(function(){
         if(!userProfile||!userProfile.channels||!userProfile.channels.length){
@@ -500,6 +520,9 @@ async function loadProfile(){
 async function startApp(){
   var init=currentUser&&currentUser.email?(currentUser.email[0]||'?').toUpperCase():'?';
   document.getElementById('headerUser').textContent=init;
+  var uname=userProfile&&userProfile.username?userProfile.username:'';
+  document.getElementById('settingsUsername').textContent=uname?'@'+uname:'';
+  document.getElementById('settingsEmail').textContent=currentUser&&currentUser.email?currentUser.email:'';
   updateGreeting();
   await Promise.all([loadFollows(),loadUserSignals()]);
   await loadCards();
@@ -739,7 +762,28 @@ function flushSession(){
 
 setInterval(flushSignalBuffer,30000);
 setInterval(flushSession,60000);
-document.addEventListener('visibilitychange',function(){if(document.hidden){flushSignalBuffer();flushSession();}});
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden){
+    var page=document.getElementById('pageCurrent');
+    if(page)savedFeedScrollTop=page.scrollTop;
+    flushSignalBuffer();flushSession();
+  }else{
+    // Returning from external link — restore scroll and expanded card
+    if(savedFeedScrollTop||expandedCardUrl){
+      requestAnimationFrame(function(){
+        var page=document.getElementById('pageCurrent');
+        if(page&&savedFeedScrollTop)page.scrollTop=savedFeedScrollTop;
+        if(expandedCardUrl&&page){
+          var cardEl=page.querySelector('[data-url="'+expandedCardUrl+'"]');
+          if(cardEl){
+            var exp=cardEl.querySelector('.feed-card-expanded');
+            if(exp&&!exp.classList.contains('open'))exp.classList.add('open');
+          }
+        }
+      });
+    }
+  }
+});
 
 // ─── Intersection observer (scroll_past + cards_seen) ──────────────────────────
 var cardObserver=new IntersectionObserver(function(entries){
@@ -1005,9 +1049,11 @@ function toggleExpand(div,c){
   var isOpen=exp.classList.contains('open');
   if(!isOpen){
     exp.classList.add('open');
+    expandedCardUrl=c?c.url:null;
     if(c){expandStartTime[c.url]=Date.now();sessionData.expands++;}
   }else{
     exp.classList.remove('open');
+    expandedCardUrl=null;
     if(c&&expandStartTime[c.url]){
       var dwell=(Date.now()-expandStartTime[c.url])/1000;
       delete expandStartTime[c.url];
