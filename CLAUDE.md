@@ -65,7 +65,7 @@ Cards are sorted by score descending before save. Personal boosts applied in-bro
 
 - Project ref: `nbiwbvqbtyqvuzaklvcx`
 - Table: `cards`
-- Upsert key: `url` (deduplicates across pipeline runs)
+- Upsert key: `(url, channel)` — same article can appear in multiple channels. Requires unique constraint: `ALTER TABLE cards DROP CONSTRAINT IF EXISTS cards_url_key; ALTER TABLE cards ADD CONSTRAINT cards_url_channel_key UNIQUE (url, channel);`
 - `pipeline_run` column (date string `YYYY-MM-DD`) lets the UI filter to today's cards
 - Credentials are hardcoded in `binder.js` (API keys, not DB password) and `index.html` (anon key)
 - Service role key used in pipeline; anon key used in frontend

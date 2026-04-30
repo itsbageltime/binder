@@ -498,6 +498,76 @@ async function loadFollowedJournalists() {
 
 const HARDCODED_CHANNELS = new Set(channels.map(c => c.name));
 
+// ─── Custom channel query expansion ──────────────────────────────────────────
+const QUERY_EXPANSIONS = {
+  'battery': 'energy grid electricity power',
+  'batteries': 'energy grid electricity power storage',
+  'solar': 'solar power renewable electricity panels',
+  'wind': 'wind turbine renewable power',
+  'electric': 'EV charging grid electricity',
+  'vehicle': 'cars automotive transportation',
+  'vehicles': 'cars automotive transportation',
+  'building': 'architecture construction real estate',
+  'buildings': 'architecture construction real estate',
+  'climate': 'climate change emissions carbon',
+  'energy': 'power grid electricity renewable',
+  'space': 'NASA SpaceX satellite astronomy rocket',
+  'health': 'medicine healthcare hospital treatment',
+  'ai': 'artificial intelligence machine learning',
+  'crypto': 'cryptocurrency bitcoin blockchain',
+  'housing': 'real estate mortgage rent property',
+  'food': 'agriculture farming nutrition diet',
+  'water': 'water supply drought infrastructure',
+  'transport': 'transportation roads transit',
+  'finance': 'financial markets investment banking',
+  'startup': 'venture capital funding entrepreneur',
+  'biotech': 'biotechnology medicine drug clinical',
+  'quantum': 'quantum computing physics research',
+  'robot': 'robotics automation manufacturing',
+  'robots': 'robotics automation manufacturing',
+  'nuclear': 'nuclear energy reactor power plant',
+  'ocean': 'ocean marine sea coastal environment',
+  'forest': 'forest logging deforestation conservation',
+  'carbon': 'carbon emissions climate CO2 net-zero',
+  'hydrogen': 'hydrogen fuel cell energy green',
+};
+
+function expandChannelQuery(channelName) {
+  const words = channelName.toLowerCase().split(/\s+/);
+  const extra = new Set();
+  words.forEach(w => {
+    if (QUERY_EXPANSIONS[w]) QUERY_EXPANSIONS[w].split(' ').forEach(t => extra.add(t));
+  });
+  if (extra.size === 0) return channelName;
+  return channelName + ' ' + Array.from(extra).join(' ');
+}
+
+// ─── Channel relevance filter ─────────────────────────────────────────────────
+// Terms required in insight+title for hardcoded channels that often get noise.
+// Custom channels use their own words as the filter.
+const CHANNEL_RELEVANCE_TERMS = {
+  'Film': ['film', 'movie', 'cinema', 'director', 'actor', 'actress', 'oscar', 'hollywood', 'documentary', 'streaming', 'series', 'television', 'screen', 'box office', 'premiere', 'sequel', 'studio'],
+  'Fashion': ['fashion', 'clothing', 'apparel', 'designer', 'brand', 'collection', 'runway', 'style', 'wear', 'fabric', 'textile', 'luxury', 'couture', 'dress', 'garment'],
+  'Arts & Culture': ['art', 'museum', 'gallery', 'exhibition', 'artist', 'culture', 'performance', 'theatre', 'theater', 'dance', 'sculpture', 'painting', 'curator', 'concert'],
+};
+
+function isRelevantToChannel(insight, title, channelName) {
+  const builtinTerms = CHANNEL_RELEVANCE_TERMS[channelName];
+  if (builtinTerms) {
+    const text = (insight + ' ' + title).toLowerCase();
+    return builtinTerms.some(t => text.includes(t));
+  }
+  // Custom channels: at least one meaningful word from the channel name must appear
+  if (!HARDCODED_CHANNELS.has(channelName)) {
+    const channelWords = channelName.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+    if (channelWords.length > 0) {
+      const text = (insight + ' ' + title).toLowerCase();
+      return channelWords.some(w => text.includes(w));
+    }
+  }
+  return true;
+}
+
 async function loadCustomChannels() {
   if (!supabase) return [];
   try {
@@ -565,8 +635,9 @@ async function run() {
       }
       for (const article of articles) {
         if (!article.title || !article.description) continue;
-        if (seenUrls.has(article.url)) continue;
-        seenUrls.add(article.url);
+        const dedupeKey = article.url + '|' + channel.name;
+        if (seenUrls.has(dedupeKey)) continue;
+        seenUrls.add(dedupeKey);
         queue.push({ article, channelName: channel.name });
       }
     }
@@ -576,12 +647,13 @@ async function run() {
   if (customChannelNames.length > 0) {
     console.log('\nCustom channels: ' + customChannelNames.join(', '));
     for (const channelName of customChannelNames) {
-      const articles = await fetchNewsApiArticles(channelName);
+      const articles = await fetchNewsApiArticles(expandChannelQuery(channelName));
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
-        if (seenUrls.has(article.url)) continue;
-        seenUrls.add(article.url);
+        const dedupeKey = article.url + '|' + channelName;
+        if (seenUrls.has(dedupeKey)) continue;
+        seenUrls.add(dedupeKey);
         queue.push({ article, channelName });
         added++;
       }
@@ -620,6 +692,13 @@ async function run() {
       return;
     }
 
+    if (!isRelevantToChannel(insight, article.title, channelName)) {
+      skipped.push({ channel: channelName, title: article.title });
+      console.log('  OFF-CHANNEL: ' + article.title.slice(0, 70));
+      outputByChannel[channelName].push('OFF-CHANNEL: ' + article.title);
+      return;
+    }
+
     const [context, authorBio] = await Promise.all([
       getContext(article, insight),
       fetchBioOnce(article),
@@ -631,7 +710,7 @@ async function run() {
   });
 
   await withConcurrency(10, tasks);
-  await markUrlsSeen(queue.map(({ article }) => article.url));
+  await markUrlsSeen(queue.map(({ article, channelName }) => article.url + '|' + channelName));
   console.log('Marked ' + queue.length + ' URLs as seen.');
 
   // Build review output grouped by channel order
@@ -665,7 +744,9 @@ async function run() {
         pipeline_run: today,
         source_type: c.source_type || 'rss',
       })),
-      { onConflict: 'url' }
+      // DDL required: ALTER TABLE cards DROP CONSTRAINT IF EXISTS cards_url_key;
+      //               ALTER TABLE cards ADD CONSTRAINT cards_url_channel_key UNIQUE (url, channel);
+      { onConflict: 'url,channel' }
     );
     if (error) {
       if (error.message && error.message.includes('source_type')) {
@@ -693,7 +774,7 @@ async function run() {
           source_type: 'rss',
           archive_only: true,
         })),
-        { onConflict: 'url' }
+        { onConflict: 'url,channel' }
       );
       if (archErr) {
         if (archErr.message && archErr.message.includes('archive_only')) {

@@ -887,11 +887,11 @@ function buildPageContent(el,channelName,live){
   el.innerHTML='';
   if(runDates.length===0){
     var isCustom=channelName!=='all'&&CHANNEL_DEFS.every(function(c){return c.name!==channelName;});
-    var emptyMsg=isCustom
-      ?'Your <em>'+escHtml(channelName)+'</em> channel is ready.<br>Fresh cards will appear at the next pipeline run — check back soon.'
-      :'No cards yet.';
-    el.innerHTML='<div class="empty-state">'+emptyMsg+'</div>';
-    appendSurvey(el);
+    if(isCustom){
+      el.innerHTML='<div class="empty-state" style="line-height:1.9">Your <em>'+escHtml(channelName)+'</em> channel will populate on the next pipeline run.<br><span style="color:#555;font-size:13px">If it stays empty, try being more specific — "Electric vehicle batteries" works better than "Batteries", and "Sustainable architecture" works better than "Buildings".</span></div>';
+    }else{
+      el.innerHTML='<div class="empty-state">No cards yet.</div>';
+    }
     return;
   }
   runDates.forEach(function(runDate,i){
