@@ -145,6 +145,11 @@ header .date { font-size: 12px; color: #555; }
 .channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid #111; }
 .channel-start-btn { width: 100%; padding: 14px; background: #4CAF50; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
 .channel-start-btn:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
+/* Channel reorder */
+.channel-done-btn { flex-shrink:0; padding:5px 14px; border-radius:20px; background:#f0f0f0; color:#0a0a0a; border:none; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
+.channels.reorder-mode .channel-btn { cursor:grab; border-style:dashed; border-color:#3a3a3a; }
+.channel-btn.reorder-grabbed { opacity:0; pointer-events:none; }
+.reorder-ghost { position:fixed; background:#f0f0f0; color:#0a0a0a; border-radius:20px; padding:5px 12px; font-size:12px; font-weight:600; pointer-events:none; z-index:100; white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,0.5); transform:scale(1.05); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -157,6 +162,7 @@ header .date { font-size: 12px; color: #555; }
   <div class="auth-form">
     <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email">
     <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <input class="auth-input" id="authUsername" type="text" placeholder="Username" autocomplete="username">
     <div class="auth-error" id="authError"></div>
     <button class="auth-btn-primary" id="authPrimaryBtn" onclick="handleAuthSubmit()">Create account</button>
     <div class="auth-toggle" id="authToggle">Already have an account? <span onclick="toggleAuthMode()">Sign in</span></div>
@@ -303,7 +309,13 @@ var CHANNEL_DEFS=[
 var selectedChannelTiles=new Set();
 var customChannels=[];
 
-document.getElementById('dateLabel').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+function updateGreeting(){
+  var el=document.getElementById('dateLabel');
+  var name=userProfile&&userProfile.username;
+  if(name){var h=new Date().getHours();el.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+name;}
+  else{el.textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});}
+}
+updateGreeting();
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 function escHtml(s){
@@ -350,6 +362,9 @@ function toggleAuthMode(){
     ?'Already have an account? <span onclick="toggleAuthMode()">Sign in</span>'
     :'New to Binder? <span onclick="toggleAuthMode()">Create account</span>';
   document.getElementById('authError').textContent='';
+  var uEl=document.getElementById('authUsername');
+  uEl.style.display=authMode==='signup'?'':'none';
+  if(authMode!=='signup')uEl.value='';
 }
 
 async function handleAuthSubmit(){
@@ -358,22 +373,25 @@ async function handleAuthSubmit(){
   var errEl=document.getElementById('authError');
   var btn=document.getElementById('authPrimaryBtn');
   if(!email||!pass){errEl.textContent='Email and password required.';return;}
-  btn.disabled=true;errEl.textContent='';
-  try{
-    if(authMode==='signup'){
+  if(authMode==='signup'){
+    var username=document.getElementById('authUsername').value.trim();
+    if(!/^[a-zA-Z0-9_]{3,}$/.test(username)){errEl.textContent='Username: min 3 characters, letters/numbers/underscores only.';return;}
+    btn.disabled=true;errEl.textContent='';
+    try{
+      var avail=await sb.rpc('check_username_available',{uname:username});
+      if(avail.error||!avail.data){errEl.textContent='That username is taken. Try another.';btn.disabled=false;return;}
       var res=await sb.auth.signUp({email:email,password:pass});
       if(res.error)throw res.error;
-      // Profile created by trigger or we create it here
       if(res.data&&res.data.user){
-        await sb.from('profiles').upsert({user_id:res.data.user.id,email:email,channels:[]});
+        await sb.from('profiles').upsert({user_id:res.data.user.id,email:email,channels:[],username:username});
       }
-    }else{
+    }catch(e){errEl.textContent=e.message||'Something went wrong.';btn.disabled=false;}
+  }else{
+    btn.disabled=true;errEl.textContent='';
+    try{
       var res=await sb.auth.signInWithPassword({email:email,password:pass});
       if(res.error)throw res.error;
-    }
-  }catch(e){
-    errEl.textContent=e.message||'Something went wrong.';
-    btn.disabled=false;
+    }catch(e){errEl.textContent=e.message||'Something went wrong.';btn.disabled=false;}
   }
 }
 
@@ -392,6 +410,7 @@ async function handleSignOut(){
   document.getElementById('authToggle').innerHTML='Already have an account? <span onclick="toggleAuthMode()">Sign in</span>';
   document.getElementById('authError').textContent='';
   document.getElementById('authEmail').value='';document.getElementById('authPassword').value='';
+  document.getElementById('authUsername').value='';document.getElementById('authUsername').style.display='';
 }
 
 function toggleUserPopover(){
@@ -414,6 +433,7 @@ async function loadProfile(){
 async function startApp(){
   var init=currentUser&&currentUser.email?(currentUser.email[0]||'?').toUpperCase():'?';
   document.getElementById('headerUser').textContent=init;
+  updateGreeting();
   await Promise.all([loadFollows(),loadUserSignals()]);
   await loadCards();
   await loadUserLikes();
@@ -677,15 +697,16 @@ var cardObserver=new IntersectionObserver(function(entries){
 
 // ─── Channels / scoring ─────────────────────────────────────────────────────────
 function buildChannels(){
+  if(reorderMode){reorderMode=false;onDragEnd();var chanDiv=document.getElementById('channels');chanDiv.classList.remove('reorder-mode');var bar=document.getElementById('reorderBar');if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);}
   var userChans=getUserChannels();
-  var cardChans=Array.from(new Set(allCards.map(function(c){return c.channel;})));
-  // Show user's selected channels that appear in cards, plus any card channels not in user list
-  var combined=['all'].concat(cardChans.filter(function(ch){return userChans.indexOf(ch)!==-1;}));
-  // Also add user's custom channels (may be empty)
-  userChans.forEach(function(ch){if(combined.indexOf(ch)===-1)combined.push(ch);});
+  var cardChanSet=new Set(allCards.map(function(c){return c.channel;}));
+  var combined=['all'];
+  userChans.forEach(function(ch){combined.push(ch);});
+  cardChanSet.forEach(function(ch){if(combined.indexOf(ch)===-1)combined.push(ch);});
   document.getElementById('channels').innerHTML=combined.map(function(t){
-    return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
+    return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" data-channel="'+escHtml(t)+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
   }).join('');
+  attachChannelLongPress();
 }
 
 function getChannelList(){
@@ -694,6 +715,7 @@ function getChannelList(){
 }
 
 function switchChannel(topic,el){
+  if(reorderMode)return;
   activeChannel=topic;
   document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
@@ -1209,6 +1231,107 @@ function pubRosterItem(name){
 
 function renderArchive(){
   document.getElementById('archiveContent').innerHTML='<div class="empty-state">Your archive will appear here.<br>Liked cards move here at the end of each day.</div>';
+}
+
+// ─── Channel reorder ────────────────────────────────────────────────────────────
+var reorderMode=false;
+var dragState=null;
+
+function attachChannelLongPress(){
+  var chanDiv=document.getElementById('channels');
+  if(chanDiv._reorderAttached)return;
+  chanDiv._reorderAttached=true;
+  var longPressTimer=null,lpStartX=0,lpStartY=0;
+  chanDiv.addEventListener('touchstart',function(e){
+    var btn=e.target.closest('.channel-btn');
+    if(reorderMode){
+      if(btn&&btn.dataset.channel!=='all'&&!dragState)startDrag(e.touches[0],btn);
+      return;
+    }
+    if(!btn||btn.dataset.channel==='all')return;
+    lpStartX=e.touches[0].clientX;lpStartY=e.touches[0].clientY;
+    longPressTimer=setTimeout(function(){longPressTimer=null;enterReorderMode();},500);
+  },{passive:true});
+  chanDiv.addEventListener('touchmove',function(e){
+    if(reorderMode||!longPressTimer)return;
+    if(Math.abs(e.touches[0].clientX-lpStartX)>8||Math.abs(e.touches[0].clientY-lpStartY)>8){clearTimeout(longPressTimer);longPressTimer=null;}
+  },{passive:true});
+  chanDiv.addEventListener('touchend',function(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}},{passive:true});
+  chanDiv.addEventListener('touchcancel',function(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}},{passive:true});
+}
+
+function enterReorderMode(){
+  if(reorderMode)return;
+  reorderMode=true;
+  var chanDiv=document.getElementById('channels');
+  chanDiv.classList.add('reorder-mode');
+  var bar=document.createElement('div');
+  bar.id='reorderBar';
+  bar.style.cssText='display:flex;align-items:center;padding:4px 16px;border-bottom:1px solid #111;flex-shrink:0;background:#0a0a0a;';
+  bar.innerHTML='<span style="font-size:12px;color:#555;flex:1;">Drag to reorder</span>';
+  var doneBtn=document.createElement('button');
+  doneBtn.className='channel-done-btn';
+  doneBtn.textContent='Done';
+  doneBtn.addEventListener('touchend',function(e){e.preventDefault();exitReorderMode();});
+  doneBtn.onclick=exitReorderMode;
+  bar.appendChild(doneBtn);
+  chanDiv.insertAdjacentElement('afterend',bar);
+}
+
+function startDrag(touch,btn){
+  var rect=btn.getBoundingClientRect();
+  var ghost=document.createElement('div');
+  ghost.className='reorder-ghost';
+  ghost.textContent=btn.textContent;
+  ghost.style.cssText='left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;';
+  document.body.appendChild(ghost);
+  btn.classList.add('reorder-grabbed');
+  dragState={btn:btn,ghost:ghost,offsetX:touch.clientX-rect.left};
+  document.addEventListener('touchmove',onDragMove,{passive:false});
+  document.addEventListener('touchend',onDragEnd,{passive:true});
+  document.addEventListener('touchcancel',onDragEnd,{passive:true});
+}
+
+function onDragMove(e){
+  if(!dragState)return;
+  e.preventDefault();
+  var touch=e.touches[0];
+  dragState.ghost.style.left=(touch.clientX-dragState.offsetX)+'px';
+  var chanDiv=document.getElementById('channels');
+  var ghostCenter=touch.clientX;
+  var btns=Array.from(chanDiv.querySelectorAll('.channel-btn'));
+  var insertBefore=null;
+  for(var i=0;i<btns.length;i++){
+    if(btns[i]===dragState.btn||btns[i].dataset.channel==='all')continue;
+    var r=btns[i].getBoundingClientRect();
+    if(ghostCenter<r.left+r.width/2){insertBefore=btns[i];break;}
+  }
+  if(insertBefore){if(dragState.btn.nextSibling!==insertBefore)chanDiv.insertBefore(dragState.btn,insertBefore);}
+  else{if(chanDiv.lastChild!==dragState.btn)chanDiv.appendChild(dragState.btn);}
+}
+
+function onDragEnd(){
+  if(!dragState)return;
+  dragState.btn.classList.remove('reorder-grabbed');
+  if(dragState.ghost.parentNode)dragState.ghost.parentNode.removeChild(dragState.ghost);
+  document.removeEventListener('touchmove',onDragMove);
+  document.removeEventListener('touchend',onDragEnd);
+  document.removeEventListener('touchcancel',onDragEnd);
+  dragState=null;
+}
+
+async function exitReorderMode(){
+  if(!reorderMode)return;
+  onDragEnd();
+  reorderMode=false;
+  var chanDiv=document.getElementById('channels');
+  chanDiv.classList.remove('reorder-mode');
+  var bar=document.getElementById('reorderBar');
+  if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);
+  var btns=Array.from(chanDiv.querySelectorAll('.channel-btn'));
+  var newOrder=btns.map(function(b){return b.dataset.channel;}).filter(function(ch){return ch!=='all';});
+  if(userProfile)userProfile.channels=newOrder;
+  if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:newOrder});
 }
 
 // ─── Channel navigation ─────────────────────────────────────────────────────────
