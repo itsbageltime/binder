@@ -25,6 +25,7 @@ header .date { font-size: 12px; color: #555; }
 .menu-row.back { color: #666; font-size: 13px; }
 .menu-row.danger { color: #e05050; }
 .menu-row-arrow { margin-left: auto; color: #444; padding-left: 8px; }
+.menu-row.sub { padding-left: 28px; color: #aaa; font-size: 13px; }
 .menu-done-row { padding: 10px 16px 14px; }
 .menu-done-btn { width: 100%; padding: 10px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .menu-done-btn:active { opacity: 0.85; }
@@ -217,13 +218,13 @@ header .date { font-size: 12px; color: #555; }
   <div class="channel-select-header">
     <button class="panel-back" id="channelSelectBack" style="display:none;margin-bottom:16px;" onclick="closeChannelSettings()">← Back</button>
     <div class="channel-select-title" id="channelSelectTitle">What interests you?</div>
-    <div class="channel-select-sub" id="channelSelectSub">Select at least 3 channels to get started.</div>
+    <div class="channel-select-sub" id="channelSelectSub">Select at least 3 feeds to get started.</div>
     <div class="channel-select-count" id="channelSelectCount"></div>
   </div>
   <div class="channel-select-body">
     <div class="channel-grid" id="channelGrid"></div>
     <div class="channel-custom">
-      <div class="channel-custom-label">Add your own</div>
+      <div class="channel-custom-label">Add your own feed</div>
       <div class="channel-custom-row">
         <input class="channel-custom-input" id="customChannelInput" type="text" placeholder="e.g. Artificial Intelligence">
         <button class="channel-custom-add" onclick="addCustomChannel()">Add</button>
@@ -243,47 +244,43 @@ header .date { font-size: 12px; color: #555; }
   <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   <div class="signout-popover" id="signoutPopover">
 
-    <!-- Panel 1: Main -->
+    <!-- Panel 1: Main (Settings expands inline as accordion) -->
     <div class="menu-panel active" id="menuMain">
       <div class="menu-user-info">
         <div class="menu-user-name" id="settingsUsername"></div>
         <div class="menu-user-email" id="settingsEmail"></div>
       </div>
       <div class="menu-divider"></div>
-      <button class="menu-row" onclick="showMenuPanel('menuSettings')">Settings <span class="menu-row-arrow">›</span></button>
+      <button class="menu-row" id="menuSettingsToggle" onclick="toggleSettingsAccordion()">Settings <span class="menu-row-arrow" id="menuSettingsChevron">›</span></button>
+      <div id="menuSettingsAccordion" style="display:none;">
+        <button class="menu-row sub" onclick="showMenuPanel('menuRearrange')">Rearrange feeds</button>
+        <button class="menu-row sub" onclick="showMenuPanel('menuEditChannels')">Edit feeds</button>
+        <button class="menu-row sub" onclick="showMenuPanel('menuEditUser')">Edit user settings</button>
+      </div>
       <div class="menu-divider"></div>
       <button class="menu-row danger" onclick="handleSignOut()">Sign out</button>
     </div>
 
-    <!-- Panel 2: Settings -->
-    <div class="menu-panel" id="menuSettings">
-      <button class="menu-row back" onclick="showMenuPanel('menuMain')">← Back</button>
-      <div class="menu-divider"></div>
-      <button class="menu-row" onclick="showMenuPanel('menuRearrange')">Rearrange channels <span class="menu-row-arrow">›</span></button>
-      <button class="menu-row" onclick="showMenuPanel('menuEditChannels')">Edit channels <span class="menu-row-arrow">›</span></button>
-      <button class="menu-row" onclick="showMenuPanel('menuEditUser')">Edit user settings <span class="menu-row-arrow">›</span></button>
-    </div>
-
-    <!-- Panel 3: Rearrange channels -->
+    <!-- Panel 2: Rearrange feeds -->
     <div class="menu-panel" id="menuRearrange">
-      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <button class="menu-row back" onclick="showMenuPanel('menuMain')">← Back</button>
       <div class="menu-divider"></div>
       <div class="menu-cr-scroll"><div id="menuCrList"></div></div>
       <div class="menu-done-row"><button class="menu-done-btn" onclick="saveChannelRearrange()">Done</button></div>
     </div>
 
-    <!-- Panel 4: Edit channels -->
+    <!-- Panel 3: Edit feeds -->
     <div class="menu-panel" id="menuEditChannels">
-      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <button class="menu-row back" onclick="showMenuPanel('menuMain')">← Back</button>
       <div class="menu-divider"></div>
       <div class="menu-ch-scroll"><div id="menuChList"></div></div>
       <div class="menu-ch-error" id="menuChError"></div>
       <div class="menu-done-row"><button class="menu-done-btn" onclick="saveChannelEdits()">Save</button></div>
     </div>
 
-    <!-- Panel 5: Edit user settings -->
+    <!-- Panel 4: Edit user settings -->
     <div class="menu-panel" id="menuEditUser">
-      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <button class="menu-row back" onclick="showMenuPanel('menuMain')">← Back</button>
       <div class="menu-divider"></div>
       <div class="menu-edit-pad">
         <div class="menu-field-label">Username</div>
@@ -328,7 +325,7 @@ header .date { font-size: 12px; color: #555; }
       <div class="panel-articles-header">
         <div class="panel-sort">
           <button class="panel-sort-btn active" onclick="sortPanelArticles('date',this)">Recent</button>
-          <button class="panel-sort-btn" onclick="sortPanelArticles('channel',this)">Channel</button>
+          <button class="panel-sort-btn" onclick="sortPanelArticles('channel',this)">Feed</button>
         </div>
         <span class="panel-section">In your feed</span>
       </div>
@@ -347,7 +344,7 @@ header .date { font-size: 12px; color: #555; }
       <div class="panel-articles-header">
         <div class="panel-sort">
           <button class="panel-sort-btn active" id="pubSortDate" onclick="sortPubPanelArticles('date',this)">Recent</button>
-          <button class="panel-sort-btn" id="pubSortChannel" onclick="sortPubPanelArticles('channel',this)">Channel</button>
+          <button class="panel-sort-btn" id="pubSortChannel" onclick="sortPubPanelArticles('channel',this)">Feed</button>
         </div>
         <span class="panel-section">In your feed</span>
       </div>
@@ -551,7 +548,11 @@ function toggleUserPopover(){
   var pop=document.getElementById('signoutPopover');
   var opening=!pop.classList.contains('open');
   pop.classList.toggle('open');
-  if(opening)showMenuPanel('menuMain');
+  if(opening){
+    document.getElementById('menuSettingsAccordion').style.display='none';
+    document.getElementById('menuSettingsChevron').textContent='›';
+    showMenuPanel('menuMain');
+  }
 }
 document.addEventListener('click',function(e){
   if(!e.target.closest('#headerUser')&&!e.target.closest('#signoutPopover')){
@@ -610,8 +611,8 @@ function showChannelSelectScreen(mode){
   document.getElementById('customChannelInput').value='';
 
   var isSettings=channelSelectMode==='settings';
-  document.getElementById('channelSelectTitle').textContent=isSettings?'Your channels':'What interests you?';
-  document.getElementById('channelSelectSub').textContent=isSettings?'Add or remove channels. Minimum 3.':'Select at least 3 channels to get started.';
+  document.getElementById('channelSelectTitle').textContent=isSettings?'Your feeds':'What interests you?';
+  document.getElementById('channelSelectSub').textContent=isSettings?'Add or remove feeds. Minimum 3.':'Select at least 3 feeds to get started.';
   document.getElementById('channelStartBtn').textContent=isSettings?'Save changes':'Start reading';
   document.getElementById('channelSelectBack').style.display=isSettings?'block':'none';
 
@@ -953,7 +954,7 @@ function buildPageContent(el,channelName,live){
   if(runDates.length===0){
     var isCustom=channelName!=='all'&&CHANNEL_DEFS.every(function(c){return c.name!==channelName;});
     if(isCustom){
-      el.innerHTML='<div class="empty-state" style="line-height:1.9">Your <em>'+escHtml(channelName)+'</em> channel will populate on the next pipeline run.<br><span style="color:#555;font-size:13px">If it stays empty, try being more specific — "Electric vehicle batteries" works better than "Batteries", and "Sustainable architecture" works better than "Buildings".</span></div>';
+      el.innerHTML='<div class="empty-state" style="line-height:1.9">Your <em>'+escHtml(channelName)+'</em> feed will populate on the next pipeline run.<br><span style="color:#555;font-size:13px">If it stays empty, try being more specific — "Electric vehicle batteries" works better than "Batteries", and "Sustainable architecture" works better than "Buildings".</span></div>';
     }else{
       el.innerHTML='<div class="empty-state">No cards yet.</div>';
     }
@@ -1414,10 +1415,23 @@ function renderArchive(){
 }
 
 // ─── User menu panel navigation ──────────────────────────────────────────────
+function toggleSettingsAccordion(){
+  var acc=document.getElementById('menuSettingsAccordion');
+  var chevron=document.getElementById('menuSettingsChevron');
+  var open=acc.style.display!=='none';
+  acc.style.display=open?'none':'block';
+  chevron.textContent=open?'›':'∨';
+}
+
 function showMenuPanel(id){
   document.querySelectorAll('.menu-panel').forEach(function(p){p.classList.remove('active');});
   var panel=document.getElementById(id);
   if(panel)panel.classList.add('active');
+  // Reset accordion when returning to main
+  if(id==='menuMain'){
+    document.getElementById('menuSettingsAccordion').style.display='none';
+    document.getElementById('menuSettingsChevron').textContent='›';
+  }
   if(id==='menuRearrange')initMenuRearrange();
   if(id==='menuEditChannels')initMenuEditChannels();
   if(id==='menuEditUser')initMenuEditUser();
@@ -1494,7 +1508,7 @@ async function saveChannelRearrange(){
   if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:newOrder});
   activeChannel='all';
   buildChannels();renderFeed();
-  showMenuPanel('menuSettings');
+  showMenuPanel('menuMain');
 }
 
 // ─── Edit channels (inline toggle list) ──────────────────────────────────────
@@ -1527,12 +1541,12 @@ function initMenuEditChannels(){
 
 async function saveChannelEdits(){
   var channels=Array.from(menuChSelected);
-  if(channels.length<3){document.getElementById('menuChError').textContent='Select at least 3 channels.';return;}
+  if(channels.length<3){document.getElementById('menuChError').textContent='Select at least 3 feeds.';return;}
   document.getElementById('menuChError').textContent='';
   if(userProfile)userProfile.channels=channels;
   if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:channels});
   buildChannels();renderFeed();
-  showMenuPanel('menuSettings');
+  showMenuPanel('menuMain');
 }
 
 // ─── Edit username ────────────────────────────────────────────────────────────
@@ -1548,7 +1562,7 @@ async function saveMenuUsername(){
   var btn=document.getElementById('menuSaveUsernameBtn');
   var username=input.value.trim();
   if(!/^[a-zA-Z0-9_]{3,}$/.test(username)){errEl.textContent='Min 3 chars, letters/numbers/underscores only.';return;}
-  if(userProfile&&userProfile.username===username){showMenuPanel('menuSettings');return;}
+  if(userProfile&&userProfile.username===username){showMenuPanel('menuMain');return;}
   btn.disabled=true;errEl.textContent='';
   try{
     var avail=await sb.rpc('check_username_available',{uname:username});
@@ -1557,7 +1571,7 @@ async function saveMenuUsername(){
     if(userProfile)userProfile.username=username;
     document.getElementById('settingsUsername').textContent='@'+username;
     document.getElementById('headerUser').textContent=username[0].toUpperCase();
-    showMenuPanel('menuSettings');
+    showMenuPanel('menuMain');
   }catch(ex){errEl.textContent=ex.message||'Something went wrong.';btn.disabled=false;}
 }
 
