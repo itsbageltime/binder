@@ -172,13 +172,21 @@ header .date { font-size: 12px; color: #555; }
   <div class="auth-logo">Binder</div>
   <div class="auth-tagline">Signal, not noise.</div>
   <div class="auth-form">
-    <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email">
-    <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
-    <input class="auth-input" id="authConfirm" type="password" placeholder="Confirm password" autocomplete="new-password">
-    <input class="auth-input" id="authUsername" type="text" placeholder="Username" autocomplete="username">
-    <div class="auth-error" id="authError"></div>
-    <button class="auth-btn-primary" id="authPrimaryBtn" onclick="handleAuthSubmit()">Create account</button>
-    <div class="auth-toggle" id="authToggle">Already have an account? <span onclick="toggleAuthMode()">Sign in</span></div>
+    <div id="authFields">
+      <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email">
+      <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
+      <input class="auth-input" id="authConfirm" type="password" placeholder="Confirm password" autocomplete="new-password">
+      <input class="auth-input" id="authUsername" type="text" placeholder="Username" autocomplete="username">
+      <div class="auth-error" id="authError"></div>
+      <button class="auth-btn-primary" id="authPrimaryBtn" onclick="handleAuthSubmit()">Create account</button>
+      <div class="auth-toggle" id="authToggle">Already have an account? <span onclick="toggleAuthMode()">Sign in</span></div>
+    </div>
+    <div id="authConfirmPending" style="display:none;text-align:center;padding:8px 0;">
+      <div style="font-size:22px;margin-bottom:16px;">✉️</div>
+      <div style="font-size:15px;color:#ccc;line-height:1.6;margin-bottom:12px;">Check your inbox — we sent you a confirmation email. Click the link to activate your account.</div>
+      <div style="font-size:13px;color:#555;margin-bottom:28px;">Once confirmed, you'll be automatically signed in.</div>
+      <div style="font-size:13px;color:#444;">Wrong address? <span style="color:#888;cursor:pointer;text-decoration:underline;" onclick="resetAuthToSignup()">Start over</span></div>
+    </div>
   </div>
 </div>
 
@@ -392,6 +400,8 @@ function toggleAuthMode(){
   uEl.style.display=isSignup?'':'none';
   cEl.style.display=isSignup?'':'none';
   if(!isSignup){uEl.value='';cEl.value='';}
+  document.getElementById('authFields').style.display='';
+  document.getElementById('authConfirmPending').style.display='none';
 }
 
 async function handleAuthSubmit(){
@@ -415,6 +425,14 @@ async function handleAuthSubmit(){
       if(res.data&&res.data.user){
         await sb.from('profiles').upsert({user_id:res.data.user.id,email:email,channels:[],username:username});
       }
+      if(!res.data||!res.data.session){
+        // Email confirmation required — show pending state, don't attempt login
+        document.getElementById('authFields').style.display='none';
+        document.getElementById('authConfirmPending').style.display='';
+        btn.disabled=false;
+        return;
+      }
+      // Session exists means auto-confirm is on; onAuthStateChange will handle routing
     }catch(e){errEl.textContent=e.message||'Something went wrong.';btn.disabled=false;}
   }else{
     btn.disabled=true;errEl.textContent='';
@@ -423,6 +441,22 @@ async function handleAuthSubmit(){
       if(res.error)throw res.error;
     }catch(e){errEl.textContent=e.message||'Something went wrong.';btn.disabled=false;}
   }
+}
+
+function resetAuthToSignup(){
+  document.getElementById('authFields').style.display='';
+  document.getElementById('authConfirmPending').style.display='none';
+  document.getElementById('authEmail').value='';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authConfirm').value='';
+  document.getElementById('authUsername').value='';
+  document.getElementById('authError').textContent='';
+  authMode='signup';
+  document.getElementById('authPrimaryBtn').textContent='Create account';
+  document.getElementById('authPrimaryBtn').disabled=false;
+  document.getElementById('authToggle').innerHTML='Already have an account? <span onclick="toggleAuthMode()">Sign in</span>';
+  document.getElementById('authUsername').style.display='';
+  document.getElementById('authConfirm').style.display='';
 }
 
 async function handleSignOut(){
@@ -435,6 +469,8 @@ async function handleSignOut(){
   signalCount=0;signalBuffer=[];sessionData={cards_seen:0,cards_completed:0,expands:0,article_clicks:0,likes:0};
   seenCardUrls=new Set();completedCardUrls=new Set();surveyAnsweredToday=false;currentUser=null;userProfile=null;
   document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('authFields').style.display='';
+  document.getElementById('authConfirmPending').style.display='none';
   authMode='signup';
   document.getElementById('authPrimaryBtn').textContent='Create account';
   document.getElementById('authToggle').innerHTML='Already have an account? <span onclick="toggleAuthMode()">Sign in</span>';
