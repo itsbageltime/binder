@@ -402,7 +402,8 @@ async function handleAuthSubmit(){
     btn.disabled=true;errEl.textContent='';
     try{
       var avail=await sb.rpc('check_username_available',{uname:username});
-      if(avail.error||!avail.data){errEl.textContent='That username is taken. Try another.';btn.disabled=false;return;}
+      if(avail.error){errEl.textContent=avail.error.message||'Could not check username. Try again.';btn.disabled=false;return;}
+      if(avail.data===false){errEl.textContent='That username is taken. Try another.';btn.disabled=false;return;}
       var res=await sb.auth.signUp({email:email,password:pass});
       if(res.error)throw res.error;
       if(res.data&&res.data.user){
