@@ -145,11 +145,23 @@ header .date { font-size: 12px; color: #555; }
 .channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid #111; }
 .channel-start-btn { width: 100%; padding: 14px; background: #4CAF50; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
 .channel-start-btn:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
-/* Channel reorder */
+/* Channel reorder settings */
 .channel-done-btn { flex-shrink:0; padding:5px 14px; border-radius:20px; background:#f0f0f0; color:#0a0a0a; border:none; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
-.channels.reorder-mode .channel-btn { cursor:grab; border-style:dashed; border-color:#3a3a3a; }
-.channel-btn.reorder-grabbed { opacity:0; pointer-events:none; }
-.reorder-ghost { position:fixed; background:#f0f0f0; color:#0a0a0a; border-radius:20px; padding:5px 12px; font-size:12px; font-weight:600; pointer-events:none; z-index:100; white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,0.5); transform:scale(1.05); }
+.channel-reorder-overlay { position:fixed; inset:0; background:#0a0a0a; z-index:200; display:none; flex-direction:column; }
+.channel-reorder-overlay.open { display:flex; }
+.channel-reorder-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #1a1a1a; flex-shrink:0; }
+.channel-reorder-title { flex:1; font-size:16px; font-weight:600; letter-spacing:-0.3px; }
+.cr-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.cr-row { display:flex; align-items:center; padding:16px 20px; border-bottom:1px solid #111; background:#0a0a0a; }
+.cr-row.cr-grabbed { opacity:0; }
+.cr-delete { background:none; border:none; color:#555; font-size:16px; cursor:pointer; line-height:1; flex-shrink:0; padding:2px 8px 2px 0; transition:color 0.15s; }
+.cr-delete:active { color:#e05a5a; }
+.cr-name { flex:1; font-size:15px; color:#ccc; }
+.cr-handle { color:#333; font-size:20px; cursor:grab; padding:4px 0 4px 8px; flex-shrink:0; touch-action:none; user-select:none; -webkit-user-select:none; }
+.cr-ghost { position:fixed; left:0; right:0; display:flex; align-items:center; padding:16px 20px; background:#1e1e1e; border-top:1px solid #2a2a2a; border-bottom:1px solid #2a2a2a; pointer-events:none; z-index:201; }
+.cr-ghost .cr-name { flex:1; font-size:15px; color:#f0f0f0; }
+.cr-ghost .cr-handle { color:#666; font-size:20px; padding:4px 0 4px 8px; }
+.cr-ghost .cr-delete { color:transparent; font-size:16px; padding:2px 8px 2px 0; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -193,12 +205,23 @@ header .date { font-size: 12px; color: #555; }
   </div>
 </div>
 
+<!-- Channel reorder overlay -->
+<div class="channel-reorder-overlay" id="channelReorderOverlay">
+  <div class="channel-reorder-header">
+    <button class="panel-back" onclick="closeChannelReorder()">← Back</button>
+    <div class="channel-reorder-title">Reorder channels</div>
+    <button class="channel-done-btn" onclick="closeChannelReorder()">Done</button>
+  </div>
+  <div class="cr-list" id="crList"></div>
+</div>
+
 <header>
   <h1>Binder</h1>
   <span class="date" id="dateLabel"></span>
   <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   <div class="signout-popover" id="signoutPopover">
-    <button onclick="showSettingsChannels()">Channels</button>
+    <button onclick="showSettingsChannels()">Edit channels</button>
+    <button onclick="openChannelReorder()">Reorder channels</button>
     <button onclick="handleSignOut()">Sign out</button>
   </div>
 </header>
@@ -697,7 +720,6 @@ var cardObserver=new IntersectionObserver(function(entries){
 
 // ─── Channels / scoring ─────────────────────────────────────────────────────────
 function buildChannels(){
-  if(reorderMode){reorderMode=false;onDragEnd();var chanDiv=document.getElementById('channels');chanDiv.classList.remove('reorder-mode');var bar=document.getElementById('reorderBar');if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);}
   var userChans=getUserChannels();
   var cardChanSet=new Set(allCards.map(function(c){return c.channel;}));
   var combined=['all'];
@@ -706,7 +728,6 @@ function buildChannels(){
   document.getElementById('channels').innerHTML=combined.map(function(t){
     return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" data-channel="'+escHtml(t)+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
   }).join('');
-  attachChannelLongPress();
 }
 
 function getChannelList(){
@@ -715,7 +736,6 @@ function getChannelList(){
 }
 
 function switchChannel(topic,el){
-  if(reorderMode)return;
   activeChannel=topic;
   document.querySelectorAll('.channel-btn').forEach(function(b){b.classList.remove('active');});
   el.classList.add('active');
@@ -1233,105 +1253,92 @@ function renderArchive(){
   document.getElementById('archiveContent').innerHTML='<div class="empty-state">Your archive will appear here.<br>Liked cards move here at the end of each day.</div>';
 }
 
-// ─── Channel reorder ────────────────────────────────────────────────────────────
-var reorderMode=false;
-var dragState=null;
+// ─── Channel reorder settings ────────────────────────────────────────────────────
+var crDragState=null;
 
-function attachChannelLongPress(){
-  var chanDiv=document.getElementById('channels');
-  if(chanDiv._reorderAttached)return;
-  chanDiv._reorderAttached=true;
-  var longPressTimer=null,lpStartX=0,lpStartY=0;
-  chanDiv.addEventListener('touchstart',function(e){
-    var btn=e.target.closest('.channel-btn');
-    if(reorderMode){
-      if(btn&&btn.dataset.channel!=='all'&&!dragState)startDrag(e.touches[0],btn);
-      return;
-    }
-    if(!btn||btn.dataset.channel==='all')return;
-    lpStartX=e.touches[0].clientX;lpStartY=e.touches[0].clientY;
-    longPressTimer=setTimeout(function(){longPressTimer=null;enterReorderMode();},500);
-  },{passive:true});
-  chanDiv.addEventListener('touchmove',function(e){
-    if(reorderMode||!longPressTimer)return;
-    if(Math.abs(e.touches[0].clientX-lpStartX)>8||Math.abs(e.touches[0].clientY-lpStartY)>8){clearTimeout(longPressTimer);longPressTimer=null;}
-  },{passive:true});
-  chanDiv.addEventListener('touchend',function(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}},{passive:true});
-  chanDiv.addEventListener('touchcancel',function(){if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}},{passive:true});
+function openChannelReorder(){
+  document.getElementById('signoutPopover').classList.remove('open');
+  renderCrList();
+  document.getElementById('channelReorderOverlay').classList.add('open');
 }
 
-function enterReorderMode(){
-  if(reorderMode)return;
-  reorderMode=true;
-  var chanDiv=document.getElementById('channels');
-  chanDiv.classList.add('reorder-mode');
-  var bar=document.createElement('div');
-  bar.id='reorderBar';
-  bar.style.cssText='display:flex;align-items:center;padding:4px 16px;border-bottom:1px solid #111;flex-shrink:0;background:#0a0a0a;';
-  bar.innerHTML='<span style="font-size:12px;color:#555;flex:1;">Drag to reorder</span>';
-  var doneBtn=document.createElement('button');
-  doneBtn.className='channel-done-btn';
-  doneBtn.textContent='Done';
-  doneBtn.addEventListener('touchend',function(e){e.preventDefault();exitReorderMode();});
-  doneBtn.onclick=exitReorderMode;
-  bar.appendChild(doneBtn);
-  chanDiv.insertAdjacentElement('afterend',bar);
+function renderCrList(){
+  var channels=getUserChannels();
+  var list=document.getElementById('crList');
+  list.innerHTML='';
+  channels.forEach(function(ch){
+    var row=document.createElement('div');
+    row.className='cr-row';
+    row.dataset.channel=ch;
+    row.innerHTML=
+      '<button class="cr-delete" aria-label="Remove">✕</button>'+
+      '<span class="cr-name">'+escHtml(ch)+'</span>'+
+      '<span class="cr-handle">≡</span>';
+    row.querySelector('.cr-delete').addEventListener('click',function(){row.parentNode.removeChild(row);});
+    row.querySelector('.cr-handle').addEventListener('touchstart',crStartDrag,{passive:false});
+    list.appendChild(row);
+  });
 }
 
-function startDrag(touch,btn){
-  var rect=btn.getBoundingClientRect();
+function crStartDrag(e){
+  e.preventDefault();
+  var row=e.currentTarget.closest('.cr-row');
+  var list=document.getElementById('crList');
+  var touch=e.touches[0];
+  var rect=row.getBoundingClientRect();
   var ghost=document.createElement('div');
-  ghost.className='reorder-ghost';
-  ghost.textContent=btn.textContent;
-  ghost.style.cssText='left:'+rect.left+'px;top:'+rect.top+'px;width:'+rect.width+'px;';
+  ghost.className='cr-ghost';
+  ghost.innerHTML=
+    '<span class="cr-delete" style="visibility:hidden;">✕</span>'+
+    '<span class="cr-name">'+escHtml(row.dataset.channel)+'</span>'+
+    '<span class="cr-handle">≡</span>';
+  ghost.style.top=rect.top+'px';
   document.body.appendChild(ghost);
-  btn.classList.add('reorder-grabbed');
-  dragState={btn:btn,ghost:ghost,offsetX:touch.clientX-rect.left};
-  document.addEventListener('touchmove',onDragMove,{passive:false});
-  document.addEventListener('touchend',onDragEnd,{passive:true});
-  document.addEventListener('touchcancel',onDragEnd,{passive:true});
+  row.classList.add('cr-grabbed');
+  crDragState={row:row,ghost:ghost,list:list,offsetY:touch.clientY-rect.top};
+  document.addEventListener('touchmove',crOnDragMove,{passive:false});
+  document.addEventListener('touchend',crOnDragEnd,{passive:true});
+  document.addEventListener('touchcancel',crOnDragEnd,{passive:true});
 }
 
-function onDragMove(e){
-  if(!dragState)return;
+function crOnDragMove(e){
+  if(!crDragState)return;
   e.preventDefault();
   var touch=e.touches[0];
-  dragState.ghost.style.left=(touch.clientX-dragState.offsetX)+'px';
-  var chanDiv=document.getElementById('channels');
-  var ghostCenter=touch.clientX;
-  var btns=Array.from(chanDiv.querySelectorAll('.channel-btn'));
+  crDragState.ghost.style.top=(touch.clientY-crDragState.offsetY)+'px';
+  var list=crDragState.list;
+  var rows=Array.from(list.querySelectorAll('.cr-row'));
+  var ghostCenter=touch.clientY;
   var insertBefore=null;
-  for(var i=0;i<btns.length;i++){
-    if(btns[i]===dragState.btn||btns[i].dataset.channel==='all')continue;
-    var r=btns[i].getBoundingClientRect();
-    if(ghostCenter<r.left+r.width/2){insertBefore=btns[i];break;}
+  for(var i=0;i<rows.length;i++){
+    if(rows[i]===crDragState.row)continue;
+    var r=rows[i].getBoundingClientRect();
+    if(ghostCenter<r.top+r.height/2){insertBefore=rows[i];break;}
   }
-  if(insertBefore){if(dragState.btn.nextSibling!==insertBefore)chanDiv.insertBefore(dragState.btn,insertBefore);}
-  else{if(chanDiv.lastChild!==dragState.btn)chanDiv.appendChild(dragState.btn);}
+  if(insertBefore){if(crDragState.row.nextSibling!==insertBefore)list.insertBefore(crDragState.row,insertBefore);}
+  else{if(list.lastChild!==crDragState.row)list.appendChild(crDragState.row);}
 }
 
-function onDragEnd(){
-  if(!dragState)return;
-  dragState.btn.classList.remove('reorder-grabbed');
-  if(dragState.ghost.parentNode)dragState.ghost.parentNode.removeChild(dragState.ghost);
-  document.removeEventListener('touchmove',onDragMove);
-  document.removeEventListener('touchend',onDragEnd);
-  document.removeEventListener('touchcancel',onDragEnd);
-  dragState=null;
+function crOnDragEnd(){
+  if(!crDragState)return;
+  crDragState.row.classList.remove('cr-grabbed');
+  if(crDragState.ghost.parentNode)crDragState.ghost.parentNode.removeChild(crDragState.ghost);
+  document.removeEventListener('touchmove',crOnDragMove);
+  document.removeEventListener('touchend',crOnDragEnd);
+  document.removeEventListener('touchcancel',crOnDragEnd);
+  crDragState=null;
 }
 
-async function exitReorderMode(){
-  if(!reorderMode)return;
-  onDragEnd();
-  reorderMode=false;
-  var chanDiv=document.getElementById('channels');
-  chanDiv.classList.remove('reorder-mode');
-  var bar=document.getElementById('reorderBar');
-  if(bar&&bar.parentNode)bar.parentNode.removeChild(bar);
-  var btns=Array.from(chanDiv.querySelectorAll('.channel-btn'));
-  var newOrder=btns.map(function(b){return b.dataset.channel;}).filter(function(ch){return ch!=='all';});
+async function closeChannelReorder(){
+  crOnDragEnd();
+  document.getElementById('channelReorderOverlay').classList.remove('open');
+  var rows=Array.from(document.getElementById('crList').querySelectorAll('.cr-row'));
+  var newOrder=rows.map(function(r){return r.dataset.channel;});
   if(userProfile)userProfile.channels=newOrder;
   if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:newOrder});
+  activeChannel='all';
+  buildChannels();
+  renderFeed();
 }
 
 // ─── Channel navigation ─────────────────────────────────────────────────────────
