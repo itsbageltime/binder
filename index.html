@@ -384,6 +384,7 @@ var surveyAnsweredToday=false;
 // ─── Return-from-article state ────────────────────────────────────────────────
 var expandedCardUrl=null;
 var savedFeedScrollTop=0;
+var appInitialized=false;
 
 // ─── Channel definitions ───────────────────────────────────────────────────────
 var CHANNEL_DEFS=[
@@ -432,8 +433,9 @@ function initAuth(){
   sb.auth.onAuthStateChange(function(event,session){
     if(session&&session.user){
       currentUser=session.user;
-      // TOKEN_REFRESHED fires when returning from Safari — don't re-render the feed
-      if(event==='TOKEN_REFRESHED'||event==='USER_UPDATED')return;
+      // Once the app is running, no auth event should re-render the feed.
+      // This prevents TOKEN_REFRESHED / SIGNED_IN on Safari return from wiping the page.
+      if(appInitialized)return;
       document.getElementById('authOverlay').style.display='none';
       loadProfile().then(function(){
         if(!userProfile||!userProfile.channels||!userProfile.channels.length){
@@ -445,6 +447,7 @@ function initAuth(){
     }else{
       currentUser=null;
       userProfile=null;
+      appInitialized=false;
       document.getElementById('authOverlay').style.display='flex';
     }
   });
@@ -580,6 +583,7 @@ async function startApp(){
   await loadCards();
   await loadUserLikes();
   checkSurveyAnswered();
+  appInitialized=true;
 }
 
 // ─── Channel selection screen ──────────────────────────────────────────────────
