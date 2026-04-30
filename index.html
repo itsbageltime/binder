@@ -11,17 +11,49 @@ header { padding: 16px 20px 8px; display: flex; align-items: center; justify-con
 header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 header .date { font-size: 12px; color: #555; }
 .header-user { width: 28px; height: 28px; border-radius: 50%; background: #1e1e1e; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; flex-shrink: 0; }
-.signout-popover { position: absolute; top: calc(100% + 4px); right: 16px; background: #1a1a1a; border: 1px solid #282828; border-radius: 14px; padding: 0; z-index: 100; display: none; width: 224px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+/* ── User menu dropdown ─────────────────────────────────────────────────────── */
+.signout-popover { position: absolute; top: calc(100% + 4px); right: 16px; background: #1a1a1a; border: 1px solid #282828; border-radius: 14px; z-index: 100; display: none; width: 264px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.65); }
 .signout-popover.open { display: block; }
-.settings-user-info { padding: 16px 16px 14px; }
-.settings-username { font-size: 15px; font-weight: 600; color: #f0f0f0; letter-spacing: -0.2px; }
-.settings-email { font-size: 12px; color: #666; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-divider { height: 1px; background: #222; }
-.settings-menu-items { padding: 6px 0; }
-.settings-menu-btn { display: block; width: 100%; padding: 12px 16px; background: none; border: none; color: #ccc; font-size: 14px; cursor: pointer; text-align: left; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
-.settings-menu-btn:active { background: #222; color: #f0f0f0; }
-.settings-menu-btn.danger { color: #e05050; }
-.settings-menu-btn.danger:active { background: #1e1010; }
+.menu-panel { display: none; }
+.menu-panel.active { display: block; }
+.menu-user-info { padding: 16px 16px 14px; }
+.menu-user-name { font-size: 15px; font-weight: 600; color: #f0f0f0; letter-spacing: -0.2px; }
+.menu-user-email { font-size: 12px; color: #555; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-divider { height: 1px; background: #1e1e1e; }
+.menu-row { display: flex; align-items: center; width: 100%; padding: 12px 16px; background: none; border: none; color: #ccc; font-size: 14px; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
+.menu-row:active { background: #222; }
+.menu-row.back { color: #666; font-size: 13px; }
+.menu-row.danger { color: #e05050; }
+.menu-row-arrow { margin-left: auto; color: #444; padding-left: 8px; }
+.menu-done-row { padding: 10px 16px 14px; }
+.menu-done-btn { width: 100%; padding: 10px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.menu-done-btn:active { opacity: 0.85; }
+/* channel toggles */
+.menu-ch-scroll { max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.menu-ch-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.menu-ch-row:active { background: #1e1e1e; }
+.menu-ch-check { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #333; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; color: #0a0a0a; }
+.menu-ch-check.on { background: #f0f0f0; border-color: #f0f0f0; }
+.menu-ch-label { font-size: 14px; color: #ccc; flex: 1; }
+.menu-ch-error { font-size: 12px; color: #e05050; padding: 0 16px 8px; min-height: 18px; }
+/* inline drag-to-reorder */
+.menu-cr-scroll { max-height: 260px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.menu-cr-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #111; background: #1a1a1a; }
+.menu-cr-row.cr-grabbed { opacity: 0; }
+.menu-cr-name { flex: 1; font-size: 14px; color: #ccc; }
+.menu-cr-handle { color: #444; font-size: 20px; cursor: grab; padding-left: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }
+.menu-cr-ghost { position: fixed; left: 0; right: 0; display: flex; align-items: center; padding: 12px 16px; background: #222; border-top: 1px solid #2a2a2a; border-bottom: 1px solid #2a2a2a; pointer-events: none; z-index: 201; }
+.menu-cr-ghost .menu-cr-name { flex: 1; font-size: 14px; color: #f0f0f0; }
+.menu-cr-ghost .menu-cr-handle { color: #666; font-size: 20px; padding-left: 12px; }
+/* username edit */
+.menu-edit-pad { padding: 14px 16px; }
+.menu-field-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+.menu-input { width: 100%; padding: 10px 12px; background: #111; border: 1px solid #2a2a2a; border-radius: 8px; color: #f0f0f0; font-size: 14px; outline: none; -webkit-appearance: none; }
+.menu-input:focus { border-color: #444; }
+.menu-field-error { font-size: 12px; color: #e05050; min-height: 18px; margin: 6px 0 10px; }
+.menu-save-btn { width: 100%; padding: 10px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+.menu-save-btn:active { opacity: 0.85; }
+.menu-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .nav { display: flex; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
 .nav-btn { flex: 1; padding: 10px; background: none; border: none; color: #444; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; border-bottom: 2px solid transparent; }
 .nav-btn.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
@@ -152,23 +184,6 @@ header .date { font-size: 12px; color: #555; }
 .channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid #111; }
 .channel-start-btn { width: 100%; padding: 14px; background: #4CAF50; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
 .channel-start-btn:disabled { background: #1a1a1a; color: #333; cursor: not-allowed; }
-/* Channel reorder settings */
-.channel-done-btn { flex-shrink:0; padding:5px 14px; border-radius:20px; background:#f0f0f0; color:#0a0a0a; border:none; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; }
-.channel-reorder-overlay { position:fixed; inset:0; background:#0a0a0a; z-index:200; display:none; flex-direction:column; }
-.channel-reorder-overlay.open { display:flex; }
-.channel-reorder-header { display:flex; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid #1a1a1a; flex-shrink:0; }
-.channel-reorder-title { flex:1; font-size:16px; font-weight:600; letter-spacing:-0.3px; }
-.cr-list { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-.cr-row { display:flex; align-items:center; padding:16px 20px; border-bottom:1px solid #111; background:#0a0a0a; }
-.cr-row.cr-grabbed { opacity:0; }
-.cr-delete { background:none; border:none; color:#555; font-size:16px; cursor:pointer; line-height:1; flex-shrink:0; padding:2px 8px 2px 0; transition:color 0.15s; }
-.cr-delete:active { color:#e05a5a; }
-.cr-name { flex:1; font-size:15px; color:#ccc; }
-.cr-handle { color:#333; font-size:20px; cursor:grab; padding:4px 0 4px 8px; flex-shrink:0; touch-action:none; user-select:none; -webkit-user-select:none; }
-.cr-ghost { position:fixed; left:0; right:0; display:flex; align-items:center; padding:16px 20px; background:#1e1e1e; border-top:1px solid #2a2a2a; border-bottom:1px solid #2a2a2a; pointer-events:none; z-index:201; }
-.cr-ghost .cr-name { flex:1; font-size:15px; color:#f0f0f0; }
-.cr-ghost .cr-handle { color:#666; font-size:20px; padding:4px 0 4px 8px; }
-.cr-ghost .cr-delete { color:transparent; font-size:16px; padding:2px 8px 2px 0; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -221,30 +236,63 @@ header .date { font-size: 12px; color: #555; }
   </div>
 </div>
 
-<!-- Channel reorder overlay -->
-<div class="channel-reorder-overlay" id="channelReorderOverlay">
-  <div class="channel-reorder-header">
-    <button class="panel-back" onclick="closeChannelReorder()">← Back</button>
-    <div class="channel-reorder-title">Reorder channels</div>
-    <button class="channel-done-btn" onclick="closeChannelReorder()">Done</button>
-  </div>
-  <div class="cr-list" id="crList"></div>
-</div>
 
 <header>
   <h1>Binder</h1>
   <span class="date" id="dateLabel"></span>
   <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   <div class="signout-popover" id="signoutPopover">
-    <div class="settings-user-info">
-      <div class="settings-username" id="settingsUsername"></div>
-      <div class="settings-email" id="settingsEmail"></div>
+
+    <!-- Panel 1: Main -->
+    <div class="menu-panel active" id="menuMain">
+      <div class="menu-user-info">
+        <div class="menu-user-name" id="settingsUsername"></div>
+        <div class="menu-user-email" id="settingsEmail"></div>
+      </div>
+      <div class="menu-divider"></div>
+      <button class="menu-row" onclick="showMenuPanel('menuSettings')">Settings <span class="menu-row-arrow">›</span></button>
+      <div class="menu-divider"></div>
+      <button class="menu-row danger" onclick="handleSignOut()">Sign out</button>
     </div>
-    <div class="settings-divider"></div>
-    <div class="settings-menu-items">
-      <button class="settings-menu-btn" onclick="showSettingsChannels()">Settings</button>
-      <button class="settings-menu-btn danger" onclick="handleSignOut()">Sign out</button>
+
+    <!-- Panel 2: Settings -->
+    <div class="menu-panel" id="menuSettings">
+      <button class="menu-row back" onclick="showMenuPanel('menuMain')">← Back</button>
+      <div class="menu-divider"></div>
+      <button class="menu-row" onclick="showMenuPanel('menuRearrange')">Rearrange channels <span class="menu-row-arrow">›</span></button>
+      <button class="menu-row" onclick="showMenuPanel('menuEditChannels')">Edit channels <span class="menu-row-arrow">›</span></button>
+      <button class="menu-row" onclick="showMenuPanel('menuEditUser')">Edit user settings <span class="menu-row-arrow">›</span></button>
     </div>
+
+    <!-- Panel 3: Rearrange channels -->
+    <div class="menu-panel" id="menuRearrange">
+      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <div class="menu-divider"></div>
+      <div class="menu-cr-scroll"><div id="menuCrList"></div></div>
+      <div class="menu-done-row"><button class="menu-done-btn" onclick="saveChannelRearrange()">Done</button></div>
+    </div>
+
+    <!-- Panel 4: Edit channels -->
+    <div class="menu-panel" id="menuEditChannels">
+      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <div class="menu-divider"></div>
+      <div class="menu-ch-scroll"><div id="menuChList"></div></div>
+      <div class="menu-ch-error" id="menuChError"></div>
+      <div class="menu-done-row"><button class="menu-done-btn" onclick="saveChannelEdits()">Save</button></div>
+    </div>
+
+    <!-- Panel 5: Edit user settings -->
+    <div class="menu-panel" id="menuEditUser">
+      <button class="menu-row back" onclick="showMenuPanel('menuSettings')">← Back</button>
+      <div class="menu-divider"></div>
+      <div class="menu-edit-pad">
+        <div class="menu-field-label">Username</div>
+        <input class="menu-input" id="menuUsernameInput" type="text" placeholder="your_username" autocomplete="username" autocapitalize="none">
+        <div class="menu-field-error" id="menuUsernameError"></div>
+        <button class="menu-save-btn" id="menuSaveUsernameBtn" onclick="saveMenuUsername()">Save</button>
+      </div>
+    </div>
+
   </div>
 </header>
 <div class="nav">
@@ -500,7 +548,10 @@ async function handleSignOut(){
 }
 
 function toggleUserPopover(){
-  document.getElementById('signoutPopover').classList.toggle('open');
+  var pop=document.getElementById('signoutPopover');
+  var opening=!pop.classList.contains('open');
+  pop.classList.toggle('open');
+  if(opening)showMenuPanel('menuMain');
 }
 document.addEventListener('click',function(e){
   if(!e.target.closest('#headerUser')&&!e.target.closest('#signoutPopover')){
@@ -521,7 +572,7 @@ async function startApp(){
   document.getElementById('headerUser').textContent=init;
   var uname=userProfile&&userProfile.username?userProfile.username:'';
   var email=currentUser&&currentUser.email?currentUser.email:'';
-  document.getElementById('settingsUsername').textContent=uname?'@'+uname:(email?email.split('@')[0]:'');
+  document.getElementById('settingsUsername').textContent=uname?'@'+uname:'';
   document.getElementById('settingsEmail').textContent=email;
   updateGreeting();
   await Promise.all([loadFollows(),loadUserSignals()]);
@@ -1362,92 +1413,152 @@ function renderArchive(){
   document.getElementById('archiveContent').innerHTML='<div class="empty-state">Your archive will appear here.<br>Liked cards move here at the end of each day.</div>';
 }
 
-// ─── Channel reorder settings ────────────────────────────────────────────────────
-var crDragState=null;
-
-function openChannelReorder(){
-  document.getElementById('signoutPopover').classList.remove('open');
-  renderCrList();
-  document.getElementById('channelReorderOverlay').classList.add('open');
+// ─── User menu panel navigation ──────────────────────────────────────────────
+function showMenuPanel(id){
+  document.querySelectorAll('.menu-panel').forEach(function(p){p.classList.remove('active');});
+  var panel=document.getElementById(id);
+  if(panel)panel.classList.add('active');
+  if(id==='menuRearrange')initMenuRearrange();
+  if(id==='menuEditChannels')initMenuEditChannels();
+  if(id==='menuEditUser')initMenuEditUser();
 }
 
-function renderCrList(){
+// ─── Rearrange channels (inline drag-to-reorder) ─────────────────────────────
+var menuCrDragState=null;
+
+function initMenuRearrange(){
   var channels=getUserChannels();
-  var list=document.getElementById('crList');
+  var list=document.getElementById('menuCrList');
   list.innerHTML='';
   channels.forEach(function(ch){
     var row=document.createElement('div');
-    row.className='cr-row';
+    row.className='menu-cr-row';
     row.dataset.channel=ch;
-    row.innerHTML=
-      '<button class="cr-delete" aria-label="Remove">✕</button>'+
-      '<span class="cr-name">'+escHtml(ch)+'</span>'+
-      '<span class="cr-handle">≡</span>';
-    row.querySelector('.cr-delete').addEventListener('click',function(){row.parentNode.removeChild(row);});
-    row.querySelector('.cr-handle').addEventListener('touchstart',crStartDrag,{passive:false});
+    row.innerHTML='<span class="menu-cr-name">'+escHtml(ch)+'</span><span class="menu-cr-handle">≡</span>';
+    row.querySelector('.menu-cr-handle').addEventListener('touchstart',menuCrStartDrag,{passive:false});
     list.appendChild(row);
   });
 }
 
-function crStartDrag(e){
+function menuCrStartDrag(e){
   e.preventDefault();
-  var row=e.currentTarget.closest('.cr-row');
-  var list=document.getElementById('crList');
+  var row=e.currentTarget.closest('.menu-cr-row');
+  var list=document.getElementById('menuCrList');
   var touch=e.touches[0];
   var rect=row.getBoundingClientRect();
   var ghost=document.createElement('div');
-  ghost.className='cr-ghost';
-  ghost.innerHTML=
-    '<span class="cr-delete" style="visibility:hidden;">✕</span>'+
-    '<span class="cr-name">'+escHtml(row.dataset.channel)+'</span>'+
-    '<span class="cr-handle">≡</span>';
+  ghost.className='menu-cr-ghost';
+  ghost.innerHTML='<span class="menu-cr-name">'+escHtml(row.dataset.channel)+'</span><span class="menu-cr-handle">≡</span>';
   ghost.style.top=rect.top+'px';
   document.body.appendChild(ghost);
   row.classList.add('cr-grabbed');
-  crDragState={row:row,ghost:ghost,list:list,offsetY:touch.clientY-rect.top};
-  document.addEventListener('touchmove',crOnDragMove,{passive:false});
-  document.addEventListener('touchend',crOnDragEnd,{passive:true});
-  document.addEventListener('touchcancel',crOnDragEnd,{passive:true});
+  menuCrDragState={row:row,ghost:ghost,list:list,offsetY:touch.clientY-rect.top};
+  document.addEventListener('touchmove',menuCrOnDragMove,{passive:false});
+  document.addEventListener('touchend',menuCrOnDragEnd,{passive:true});
+  document.addEventListener('touchcancel',menuCrOnDragEnd,{passive:true});
 }
 
-function crOnDragMove(e){
-  if(!crDragState)return;
+function menuCrOnDragMove(e){
+  if(!menuCrDragState)return;
   e.preventDefault();
   var touch=e.touches[0];
-  crDragState.ghost.style.top=(touch.clientY-crDragState.offsetY)+'px';
-  var list=crDragState.list;
-  var rows=Array.from(list.querySelectorAll('.cr-row'));
+  menuCrDragState.ghost.style.top=(touch.clientY-menuCrDragState.offsetY)+'px';
+  var list=menuCrDragState.list;
+  var rows=Array.from(list.querySelectorAll('.menu-cr-row'));
   var ghostCenter=touch.clientY;
   var insertBefore=null;
   for(var i=0;i<rows.length;i++){
-    if(rows[i]===crDragState.row)continue;
+    if(rows[i]===menuCrDragState.row)continue;
     var r=rows[i].getBoundingClientRect();
     if(ghostCenter<r.top+r.height/2){insertBefore=rows[i];break;}
   }
-  if(insertBefore){if(crDragState.row.nextSibling!==insertBefore)list.insertBefore(crDragState.row,insertBefore);}
-  else{if(list.lastChild!==crDragState.row)list.appendChild(crDragState.row);}
+  if(insertBefore){if(menuCrDragState.row.nextSibling!==insertBefore)list.insertBefore(menuCrDragState.row,insertBefore);}
+  else{if(list.lastChild!==menuCrDragState.row)list.appendChild(menuCrDragState.row);}
 }
 
-function crOnDragEnd(){
-  if(!crDragState)return;
-  crDragState.row.classList.remove('cr-grabbed');
-  if(crDragState.ghost.parentNode)crDragState.ghost.parentNode.removeChild(crDragState.ghost);
-  document.removeEventListener('touchmove',crOnDragMove);
-  document.removeEventListener('touchend',crOnDragEnd);
-  document.removeEventListener('touchcancel',crOnDragEnd);
-  crDragState=null;
+function menuCrOnDragEnd(){
+  if(!menuCrDragState)return;
+  menuCrDragState.row.classList.remove('cr-grabbed');
+  if(menuCrDragState.ghost.parentNode)menuCrDragState.ghost.parentNode.removeChild(menuCrDragState.ghost);
+  document.removeEventListener('touchmove',menuCrOnDragMove);
+  document.removeEventListener('touchend',menuCrOnDragEnd);
+  document.removeEventListener('touchcancel',menuCrOnDragEnd);
+  menuCrDragState=null;
 }
 
-async function closeChannelReorder(){
-  crOnDragEnd();
-  document.getElementById('channelReorderOverlay').classList.remove('open');
-  var rows=Array.from(document.getElementById('crList').querySelectorAll('.cr-row'));
+async function saveChannelRearrange(){
+  menuCrOnDragEnd();
+  var rows=Array.from(document.getElementById('menuCrList').querySelectorAll('.menu-cr-row'));
   var newOrder=rows.map(function(r){return r.dataset.channel;});
   if(userProfile)userProfile.channels=newOrder;
   if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:newOrder});
   activeChannel='all';
-  buildChannels();
-  renderFeed();
+  buildChannels();renderFeed();
+  showMenuPanel('menuSettings');
+}
+
+// ─── Edit channels (inline toggle list) ──────────────────────────────────────
+var menuChSelected=new Set();
+
+function initMenuEditChannels(){
+  menuChSelected=new Set(getUserChannels());
+  var list=document.getElementById('menuChList');
+  list.innerHTML='';
+  document.getElementById('menuChError').textContent='';
+  CHANNEL_DEFS.forEach(function(ch){
+    var on=menuChSelected.has(ch.name);
+    var row=document.createElement('div');
+    row.className='menu-ch-row';
+    row.dataset.channel=ch.name;
+    row.innerHTML='<div class="menu-ch-check'+(on?' on':'')+'>'+(on?'✓':'')+'</div><span class="menu-ch-label">'+escHtml(ch.name)+'</span>';
+    row.addEventListener('click',function(){
+      var check=row.querySelector('.menu-ch-check');
+      if(menuChSelected.has(ch.name)){
+        menuChSelected.delete(ch.name);
+        check.className='menu-ch-check';check.textContent='';
+      }else{
+        menuChSelected.add(ch.name);
+        check.className='menu-ch-check on';check.textContent='✓';
+      }
+    });
+    list.appendChild(row);
+  });
+}
+
+async function saveChannelEdits(){
+  var channels=Array.from(menuChSelected);
+  if(channels.length<3){document.getElementById('menuChError').textContent='Select at least 3 channels.';return;}
+  document.getElementById('menuChError').textContent='';
+  if(userProfile)userProfile.channels=channels;
+  if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:channels});
+  buildChannels();renderFeed();
+  showMenuPanel('menuSettings');
+}
+
+// ─── Edit username ────────────────────────────────────────────────────────────
+function initMenuEditUser(){
+  document.getElementById('menuUsernameInput').value=userProfile&&userProfile.username?userProfile.username:'';
+  document.getElementById('menuUsernameError').textContent='';
+  document.getElementById('menuSaveUsernameBtn').disabled=false;
+}
+
+async function saveMenuUsername(){
+  var input=document.getElementById('menuUsernameInput');
+  var errEl=document.getElementById('menuUsernameError');
+  var btn=document.getElementById('menuSaveUsernameBtn');
+  var username=input.value.trim();
+  if(!/^[a-zA-Z0-9_]{3,}$/.test(username)){errEl.textContent='Min 3 chars, letters/numbers/underscores only.';return;}
+  if(userProfile&&userProfile.username===username){showMenuPanel('menuSettings');return;}
+  btn.disabled=true;errEl.textContent='';
+  try{
+    var avail=await sb.rpc('check_username_available',{uname:username});
+    if(avail.error||avail.data===false){errEl.textContent='That username is taken.';btn.disabled=false;return;}
+    await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,username:username,channels:(userProfile&&userProfile.channels)||[]});
+    if(userProfile)userProfile.username=username;
+    document.getElementById('settingsUsername').textContent='@'+username;
+    document.getElementById('headerUser').textContent=username[0].toUpperCase();
+    showMenuPanel('menuSettings');
+  }catch(ex){errEl.textContent=ex.message||'Something went wrong.';btn.disabled=false;}
 }
 
 // ─── Channel navigation ─────────────────────────────────────────────────────────
