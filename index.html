@@ -7,21 +7,21 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { background: #0a0a0a; color: #f0f0f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-header { padding: 16px 20px 8px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+header { padding: 16px 20px 8px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; position: relative; }
 header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
 header .date { font-size: 12px; color: #555; }
 .header-user { width: 28px; height: 28px; border-radius: 50%; background: #1e1e1e; border: 1px solid #2a2a2a; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; flex-shrink: 0; }
-.signout-popover { position: absolute; top: 52px; right: 16px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 0; z-index: 50; display: none; min-width: 210px; overflow: hidden; }
+.signout-popover { position: absolute; top: calc(100% + 4px); right: 16px; background: #1a1a1a; border: 1px solid #282828; border-radius: 14px; padding: 0; z-index: 100; display: none; width: 224px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
 .signout-popover.open { display: block; }
-.settings-user-info { padding: 14px 16px 12px; }
-.settings-username { font-size: 14px; font-weight: 600; color: #e0e0e0; }
-.settings-email { font-size: 12px; color: #444; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.settings-divider { height: 1px; background: #222; margin: 0; }
-.settings-menu-items { padding: 4px 0; }
-.signout-popover button { display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: #888; font-size: 13px; cursor: pointer; text-align: left; white-space: nowrap; }
-.signout-popover button:active { background: #222; }
-.signout-popover button.danger { color: #c04040; }
-.signout-popover button.danger:active { background: #1e1212; }
+.settings-user-info { padding: 16px 16px 14px; }
+.settings-username { font-size: 15px; font-weight: 600; color: #f0f0f0; letter-spacing: -0.2px; }
+.settings-email { font-size: 12px; color: #666; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-divider { height: 1px; background: #222; }
+.settings-menu-items { padding: 6px 0; }
+.settings-menu-btn { display: block; width: 100%; padding: 12px 16px; background: none; border: none; color: #ccc; font-size: 14px; cursor: pointer; text-align: left; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+.settings-menu-btn:active { background: #222; color: #f0f0f0; }
+.settings-menu-btn.danger { color: #e05050; }
+.settings-menu-btn.danger:active { background: #1e1010; }
 .nav { display: flex; border-bottom: 1px solid #1a1a1a; flex-shrink: 0; }
 .nav-btn { flex: 1; padding: 10px; background: none; border: none; color: #444; font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; border-bottom: 2px solid transparent; }
 .nav-btn.active { color: #f0f0f0; border-bottom-color: #f0f0f0; }
@@ -242,9 +242,8 @@ header .date { font-size: 12px; color: #555; }
     </div>
     <div class="settings-divider"></div>
     <div class="settings-menu-items">
-      <button onclick="showSettingsChannels()">Add or remove channels</button>
-      <button onclick="openChannelReorder()">Reorder channels</button>
-      <button class="danger" onclick="handleSignOut()">Sign out</button>
+      <button class="settings-menu-btn" onclick="showSettingsChannels()">Settings</button>
+      <button class="settings-menu-btn danger" onclick="handleSignOut()">Sign out</button>
     </div>
   </div>
 </header>
@@ -521,8 +520,9 @@ async function startApp(){
   var init=currentUser&&currentUser.email?(currentUser.email[0]||'?').toUpperCase():'?';
   document.getElementById('headerUser').textContent=init;
   var uname=userProfile&&userProfile.username?userProfile.username:'';
-  document.getElementById('settingsUsername').textContent=uname?'@'+uname:'';
-  document.getElementById('settingsEmail').textContent=currentUser&&currentUser.email?currentUser.email:'';
+  var email=currentUser&&currentUser.email?currentUser.email:'';
+  document.getElementById('settingsUsername').textContent=uname?'@'+uname:(email?email.split('@')[0]:'');
+  document.getElementById('settingsEmail').textContent=email;
   updateGreeting();
   await Promise.all([loadFollows(),loadUserSignals()]);
   await loadCards();
@@ -768,19 +768,33 @@ document.addEventListener('visibilitychange',function(){
     if(page)savedFeedScrollTop=page.scrollTop;
     flushSignalBuffer();flushSession();
   }else{
-    // Returning from external link — restore scroll and expanded card
-    if(savedFeedScrollTop||expandedCardUrl){
-      requestAnimationFrame(function(){
+    // Returning from external article — restore scroll + expanded card
+    var scrollTarget=savedFeedScrollTop;
+    var cardTarget=expandedCardUrl;
+    // sessionStorage fallback if page was reloaded (memory-pressure eviction on iOS)
+    if(!cardTarget){
+      try{
+        cardTarget=sessionStorage.getItem('bCard')||'';
+        scrollTarget=parseInt(sessionStorage.getItem('bScroll')||'0',10);
+      }catch(ex){}
+    }
+    if(scrollTarget||cardTarget){
+      setTimeout(function(){
         var page=document.getElementById('pageCurrent');
-        if(page&&savedFeedScrollTop)page.scrollTop=savedFeedScrollTop;
-        if(expandedCardUrl&&page){
-          var cardEl=page.querySelector('[data-url="'+expandedCardUrl+'"]');
-          if(cardEl){
-            var exp=cardEl.querySelector('.feed-card-expanded');
-            if(exp&&!exp.classList.contains('open'))exp.classList.add('open');
+        if(page&&scrollTarget)page.scrollTop=scrollTarget;
+        if(cardTarget&&page){
+          // Iterate rather than querySelector to avoid CSS-selector escaping issues with URLs
+          var cards=page.querySelectorAll('.feed-card');
+          for(var i=0;i<cards.length;i++){
+            if(cards[i].dataset.url===cardTarget){
+              var exp=cards[i].querySelector('.feed-card-expanded');
+              if(exp&&!exp.classList.contains('open'))exp.classList.add('open');
+              break;
+            }
           }
         }
-      });
+        try{sessionStorage.removeItem('bCard');sessionStorage.removeItem('bScroll');}catch(ex){}
+      },80);
     }
   }
 });
@@ -1037,6 +1051,11 @@ function attachCardHandlers(div,c){
     if(e.target.closest('[data-action="read"]')){
       recordSignal('click_through',c,{});
       sessionData.article_clicks++;
+      // Persist position before Safari opens — survives page reloads
+      var page=document.getElementById('pageCurrent');
+      expandedCardUrl=c.url;
+      if(page)savedFeedScrollTop=page.scrollTop;
+      try{sessionStorage.setItem('bCard',c.url);sessionStorage.setItem('bScroll',savedFeedScrollTop);}catch(ex){}
       return;
     }
     toggleExpand(div,c);
