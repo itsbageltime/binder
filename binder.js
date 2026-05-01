@@ -650,7 +650,10 @@ async function loadCustomChannels() {
 const SPAM_TITLE_PATTERNS = [
   /market size/i, /market report/i, /market forecast/i,
   /\bkpis\b/i, /databook/i, /business wire/i, /prnewswire/i,
-  /\b20\d{2}\s*$/, // title ends with a year like 2026, 2031
+  /\b20\d{2}\s*$/,      // title ends with a year like 2026, 2031
+  /report\s+20\d{2}/i,  // "Research Report 2026", "Market Report 2031"
+  /\boutlook\b/i, /\bopportunities\b/i, /trends and forecasts/i,
+  /\bcmo\b/i, /\bcro\b/i, /epidemiology/i, /pipeline analysis/i,
 ];
 
 function isSpamTitle(title) {
@@ -746,10 +749,12 @@ async function run() {
       console.log('  [' + channel.name + '] total new from RSS: ' + channelNew + '\n');
     }
   }
-  // Phase 1b: NewsAPI supplement for hardcoded channels (last 24h)
-  if (NEWSAPI_KEY) {
+  // Phase 1b: NewsAPI supplement for hardcoded channels (last 48h)
+  {
     const from48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
-    console.log('\nNewsAPI supplement for hardcoded channels (from ' + from48h.slice(0, 16) + 'Z)...');
+    console.log('\nNewsAPI supplement for hardcoded channels...');
+    console.log('  key: ' + (NEWSAPI_KEY ? 'set (' + NEWSAPI_KEY.length + ' chars)' : 'NOT SET — will skip'));
+    console.log('  from: ' + from48h);
     for (const channel of channels) {
       const query = CHANNEL_NEWSAPI_QUERIES[channel.name];
       if (!query) continue;
