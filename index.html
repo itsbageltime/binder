@@ -352,11 +352,17 @@ header .date { font-size: 12px; color: #555; }
       <div class="settings-panel-title">Edit feeds</div>
     </div>
     <div class="settings-panel-body">
-      <div id="menuChList"></div>
-      <div class="menu-ch-error" id="menuChError"></div>
+      <div style="padding: 12px 20px 0;">
+        <div style="font-size:13px;color:#555;">Add or remove feeds. Minimum 3.</div>
+        <div class="channel-select-count" id="menuChCount" style="margin-top:4px;"></div>
+      </div>
+      <div style="padding: 12px 20px 20px;">
+        <div class="channel-grid" id="menuChGrid"></div>
+        <div class="menu-ch-error" id="menuChError"></div>
+      </div>
     </div>
     <div class="settings-panel-footer">
-      <button class="menu-done-btn" onclick="saveChannelEdits()">Save feeds</button>
+      <button class="channel-start-btn" id="menuChSaveBtn" onclick="saveChannelEdits()">Save feeds</button>
     </div>
   </div>
 
@@ -1545,27 +1551,33 @@ var menuChSelected=new Set();
 
 function initMenuEditChannels(){
   menuChSelected=new Set(getUserChannels());
-  var list=document.getElementById('menuChList');
-  list.innerHTML='';
+  var grid=document.getElementById('menuChGrid');
+  grid.innerHTML='';
   document.getElementById('menuChError').textContent='';
   CHANNEL_DEFS.forEach(function(ch){
-    var on=menuChSelected.has(ch.name);
-    var row=document.createElement('div');
-    row.className='menu-ch-row';
-    row.dataset.channel=ch.name;
-    row.innerHTML='<div class="menu-ch-check'+(on?' on':'')+'>'+(on?'✓':'')+'</div><span class="menu-ch-label">'+escHtml(ch.name)+'</span>';
-    row.addEventListener('click',function(){
-      var check=row.querySelector('.menu-ch-check');
+    var sel=menuChSelected.has(ch.name);
+    var tile=document.createElement('div');
+    tile.className='channel-tile'+(sel?' selected':'');
+    tile.dataset.channel=ch.name;
+    tile.innerHTML='<div class="channel-tile-name">'+escHtml(ch.name)+'</div><div class="channel-tile-desc">'+escHtml(ch.desc)+'</div>';
+    tile.addEventListener('click',function(){
       if(menuChSelected.has(ch.name)){
         menuChSelected.delete(ch.name);
-        check.className='menu-ch-check';check.textContent='';
+        tile.classList.remove('selected');
       }else{
         menuChSelected.add(ch.name);
-        check.className='menu-ch-check on';check.textContent='✓';
+        tile.classList.add('selected');
       }
+      updateMenuChCount();
     });
-    list.appendChild(row);
+    grid.appendChild(tile);
   });
+  updateMenuChCount();
+}
+
+function updateMenuChCount(){
+  var n=menuChSelected.size;
+  document.getElementById('menuChCount').textContent=n+' selected';
 }
 
 async function saveChannelEdits(){
