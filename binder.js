@@ -30,6 +30,11 @@ const channels = [
       'https://afasiaarchzine.com/feed',
       'https://failedarchitecture.com/feed',
       'https://www.dezeen.com/interiors/feed/',
+      'https://www.architectmagazine.com/rss/feed.xml',
+      'https://www.bdonline.co.uk/rss',
+      'https://www.architecturalrecord.com/rss/news.xml',
+      'https://www.constructiondive.com/feeds/news/',
+      'https://www.dezeen.com/news/feed/',
     ]
   },
   {
@@ -46,6 +51,8 @@ const channels = [
       'https://www.yankodesign.com/feed',
       'https://www.creativereview.co.uk/feed',
       'https://www.designboom.com/feed',
+      'https://www.wallpaper.com/rss',
+      'https://frameweb.com/rss',
     ]
   },
   {
@@ -82,12 +89,15 @@ const channels = [
       'https://energynews.us/feed',
       'https://www.greentechmedia.com/articles/feed',
       'https://feeds.bbci.co.uk/news/science_and_environment/rss.xml',
+      'https://www.climatechangenews.com/feed/',
+      'https://www.eenews.net/rss',
     ]
   },
   {
     name: 'Urban Development',
     feeds: [
       'https://nextcity.org/feeds/features',
+      'https://nextcity.org/all.rss',
       'https://planetizen.com/frontpage/feed',
       'https://www.strongtowns.org/journal?format=rss',
       'https://www.theurbanist.org/feed',
@@ -96,6 +106,9 @@ const channels = [
       'https://nyc.streetsblog.org/feed',
       'https://sf.streetsblog.org/feed',
       'https://la.streetsblog.org/feed',
+      'https://www.governing.com/rss',
+      'https://citymonitor.ai/feed',
+      'https://www.bloomberg.com/citylab/rss',
     ]
   },
   {
@@ -111,6 +124,7 @@ const channels = [
       'https://feeds.feedburner.com/entrepreneur/latest',
       'https://www.businessinsider.com/rss',
       'https://news.ycombinator.com/rss',
+      'https://feeds.bloomberg.com/business/news.rss',
     ]
   },
   {
@@ -148,6 +162,10 @@ const channels = [
       'https://www.stereogum.com/feed',
       'https://www.brooklynvegan.com/feed',
       'https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml',
+      'https://news.artnet.com/feed',
+      'https://consequenceofsound.net/feed',
+      'https://www.nme.com/rss',
+      'https://www.rollingstone.com/music/music-news/rss/',
     ]
   },
   {
@@ -527,14 +545,14 @@ const HARDCODED_CHANNELS = new Set(channels.map(c => c.name));
 
 // ─── NewsAPI queries for hardcoded channels ───────────────────────────────────
 const CHANNEL_NEWSAPI_QUERIES = {
-  'Architecture':        'architecture building design',
+  'Architecture':        'architecture building construction design urban development',
   'Design':              'industrial design product design',
   'Technology':          'technology AI software',
   'Energy & Climate':    'energy climate renewable solar',
-  'Urban Development':   'urban city planning housing',
+  'Urban Development':   'urban housing city transit planning zoning policy',
   'Business & Startups': 'startup business funding',
   'Science':             'science research discovery',
-  'Arts & Culture':      'art culture music',
+  'Arts & Culture':      'art culture museum exhibition music gallery',
   'Film':                'film cinema movie',
   'Fashion':             'fashion design style',
   'Politics & World':    'politics world news',
@@ -542,8 +560,9 @@ const CHANNEL_NEWSAPI_QUERIES = {
 
 // ─── Custom channel query expansion ──────────────────────────────────────────
 const QUERY_EXPANSIONS = {
-  'battery': 'energy grid electricity power',
-  'batteries': 'energy grid electricity power storage',
+  'battery': 'battery storage energy grid electricity lithium',
+  'batteries': 'battery storage energy grid electricity lithium',
+  'storage': 'energy storage battery grid electricity',
   'solar': 'solar power renewable electricity panels',
   'wind': 'wind turbine renewable power',
   'electric': 'EV charging grid electricity',
