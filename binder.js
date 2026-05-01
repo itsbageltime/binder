@@ -348,10 +348,23 @@ async function callClaude(params) {
   }
 }
 
+function extractImageUrl(item) {
+  if (item.mediaThumbnail && item.mediaThumbnail.$ && item.mediaThumbnail.$.url) return item.mediaThumbnail.$.url;
+  if (item.mediaContent && item.mediaContent.$ && item.mediaContent.$.url) return item.mediaContent.$.url;
+  if (item.enclosure && item.enclosure.url && /^image/i.test(item.enclosure.type || '')) return item.enclosure.url;
+  return null;
+}
+
 async function fetchFeed(url) {
   const parser = new Parser({
     timeout: 8000,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)' }
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)' },
+    customFields: {
+      item: [
+        ['media:content', 'mediaContent', { keepArray: false }],
+        ['media:thumbnail', 'mediaThumbnail', { keepArray: false }],
+      ]
+    }
   });
   try {
     const feed = await parser.parseURL(url);
@@ -362,6 +375,7 @@ async function fetchFeed(url) {
       pubDate: item.isoDate || item.pubDate || '',
       source: feed.title || url.split('/')[2],
       author: item.creator || item.author || 'Unknown',
+      imageUrl: extractImageUrl(item),
     }));
   } catch(e) {
     return [];
@@ -704,7 +718,7 @@ async function run() {
       fetchBioOnce(article),
     ]);
     const score = scoreInsight(insight);
-    cards.push({ channel: channelName, insight, context, score, title: article.title, source: article.source, author: article.author, authorBio, pubDate: article.pubDate, url: article.url });
+    cards.push({ channel: channelName, insight, context, score, title: article.title, source: article.source, author: article.author, authorBio, pubDate: article.pubDate, url: article.url, imageUrl: article.imageUrl || null });
     console.log('  CARD [' + score + ']: ' + insight);
     outputByChannel[channelName].push('CARD [' + score + ']: ' + insight, '      ' + article.source + ' — ' + article.author, '      ' + article.url, '');
   });
@@ -743,6 +757,7 @@ async function run() {
         url: c.url,
         pipeline_run: today,
         source_type: c.source_type || 'rss',
+        image_url: c.imageUrl || null,
       })),
       // DDL required: ALTER TABLE cards DROP CONSTRAINT IF EXISTS cards_url_key;
       //               ALTER TABLE cards ADD CONSTRAINT cards_url_channel_key UNIQUE (url, channel);
