@@ -29,4 +29,5 @@ jobs:
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
         run: node binder.js
