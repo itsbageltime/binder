@@ -649,7 +649,7 @@ async function loadCustomChannels() {
 
 async function fetchNewsApiArticles(query, from) {
   if (!NEWSAPI_KEY) {
-    console.warn('  NEWSAPI_KEY not set — skipping "' + query + '"');
+    console.warn('  [NewsAPI] key missing — skipping "' + query + '"');
     return [];
   }
   try {
@@ -657,52 +657,77 @@ async function fetchNewsApiArticles(query, from) {
       '&language=en&sortBy=publishedAt&pageSize=100' +
       (from ? '&from=' + encodeURIComponent(from) : '') +
       '&apiKey=' + NEWSAPI_KEY;
+    console.log('  [NewsAPI] "' + query + '"' + (from ? ' from=' + from.slice(0, 10) : ''));
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
-      console.warn('  NewsAPI HTTP ' + res.status + ' for "' + query + '"');
+      const body = await res.text().catch(() => '');
+      console.warn('  [NewsAPI] HTTP ' + res.status + ': ' + body.slice(0, 200));
       return [];
     }
     const json = await res.json();
-    if (json.status !== 'ok' || !Array.isArray(json.articles)) return [];
-    return json.articles
-      .filter(a => a.title && a.description && a.url && a.title !== '[Removed]')
-      .map(a => ({
-        title: a.title || '',
-        description: (a.description || '').slice(0, 400),
-        url: a.url || '',
-        pubDate: a.publishedAt || '',
-        source: (a.source && a.source.name) || 'Unknown',
-        author: a.author || 'Unknown',
-      }));
+    if (json.status !== 'ok') {
+      console.warn('  [NewsAPI] API error: ' + json.code + ' — ' + json.message);
+      return [];
+    }
+    const raw = Array.isArray(json.articles) ? json.articles : [];
+    const filtered = raw.filter(a => a.title && a.description && a.url && a.title !== '[Removed]');
+    console.log('  [NewsAPI] totalResults=' + json.totalResults + ' raw=' + raw.length + ' filtered=' + filtered.length);
+    return filtered.map(a => ({
+      title: a.title || '',
+      description: (a.description || '').slice(0, 400),
+      url: a.url || '',
+      pubDate: a.publishedAt || '',
+      source: (a.source && a.source.name) || 'Unknown',
+      author: a.author || 'Unknown',
+    }));
   } catch(e) {
-    console.warn('  NewsAPI fetch error for "' + query + '":', e.message);
+    console.warn('  [NewsAPI] fetch error for "' + query + '":', e.message);
     return [];
   }
 }
 
 async function run() {
   console.log('Building Binder pipeline...\n');
+  console.log('NEWSAPI_KEY: ' + (NEWSAPI_KEY ? 'set (' + NEWSAPI_KEY.length + ' chars)' : 'NOT SET'));
+  console.log('ANTHROPIC_KEY: ' + (ANTHROPIC_KEY ? 'set' : 'NOT SET'));
+  console.log('SUPABASE_URL: ' + (SUPABASE_URL || 'NOT SET') + '\n');
   await pruneSeenUrls();
   const followed = await loadFollowedJournalists();
   const seenUrls = await loadSeenUrls();
   console.log('Cross-run dedup: ' + seenUrls.size + ' URLs already seen.\n');
 
+  const VERBOSE_CHANNELS = new Set(['Architecture', 'Urban Development', 'Arts & Culture']);
+
   // Phase 1: fetch all feeds and collect articles
   const queue = [];
   for (const channel of channels) {
+    const verbose = VERBOSE_CHANNELS.has(channel.name);
+    let channelNew = 0;
     for (const feedUrl of channel.feeds) {
       const articles = await fetchFeed(feedUrl);
-      if (articles.length === 0) {
-        console.log('  (no articles from ' + feedUrl.split('/')[2] + ')');
-        continue;
+      const domain = feedUrl.split('/')[2];
+      if (verbose) {
+        console.log('  [' + channel.name + '] ' + domain + ': ' + articles.length + ' articles fetched');
+      } else if (articles.length === 0) {
+        console.log('  (no articles from ' + domain + ')');
       }
+      if (articles.length === 0) continue;
+      let feedNew = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
         const dedupeKey = article.url + '|' + channel.name;
         if (seenUrls.has(dedupeKey)) continue;
         seenUrls.add(dedupeKey);
         queue.push({ article, channelName: channel.name });
+        feedNew++;
+        channelNew++;
       }
+      if (verbose && feedNew < articles.length) {
+        console.log('    → ' + feedNew + ' new (rest already seen)');
+      }
+    }
+    if (verbose) {
+      console.log('  [' + channel.name + '] total new from RSS: ' + channelNew + '\n');
     }
   }
   // Phase 1b: NewsAPI supplement for hardcoded channels (last 24h)
@@ -722,7 +747,7 @@ async function run() {
         queue.push({ article, channelName: channel.name });
         added++;
       }
-      console.log('  "' + channel.name + '" (NewsAPI): ' + added + ' new articles');
+      console.log('  "' + channel.name + '" (NewsAPI): ' + articles.length + ' returned → ' + added + ' new');
     }
   }
 
