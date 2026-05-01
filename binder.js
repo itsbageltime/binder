@@ -647,6 +647,17 @@ async function loadCustomChannels() {
   }
 }
 
+const SPAM_TITLE_PATTERNS = [
+  /market size/i, /market report/i, /market forecast/i,
+  /\bkpis\b/i, /databook/i, /business wire/i, /prnewswire/i,
+  /\b20\d{2}\s*$/, // title ends with a year like 2026, 2031
+];
+
+function isSpamTitle(title) {
+  if (!title) return false;
+  return SPAM_TITLE_PATTERNS.some(re => re.test(title.trim()));
+}
+
 async function fetchNewsApiArticles(query, from) {
   if (!NEWSAPI_KEY) {
     console.warn('  [NewsAPI] key missing — skipping "' + query + '"');
@@ -700,10 +711,14 @@ async function run() {
 
   // Phase 1: fetch all feeds and collect articles
   const queue = [];
+  const seenFeedUrls = new Set();
   for (const channel of channels) {
     const verbose = VERBOSE_CHANNELS.has(channel.name);
     let channelNew = 0;
     for (const feedUrl of channel.feeds) {
+      const feedKey = feedUrl + '|' + channel.name;
+      if (seenFeedUrls.has(feedKey)) continue;
+      seenFeedUrls.add(feedKey);
       const articles = await fetchFeed(feedUrl);
       const domain = feedUrl.split('/')[2];
       if (verbose) {
@@ -715,6 +730,7 @@ async function run() {
       let feedNew = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
+        if (isSpamTitle(article.title)) continue;
         const dedupeKey = article.url + '|' + channel.name;
         if (seenUrls.has(dedupeKey)) continue;
         seenUrls.add(dedupeKey);
@@ -723,7 +739,7 @@ async function run() {
         channelNew++;
       }
       if (verbose && feedNew < articles.length) {
-        console.log('    → ' + feedNew + ' new (rest already seen)');
+        console.log('    → ' + feedNew + ' new (rest already seen or spam)');
       }
     }
     if (verbose) {
@@ -741,6 +757,7 @@ async function run() {
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
+        if (isSpamTitle(article.title)) continue;
         const dedupeKey = article.url + '|' + channel.name;
         if (seenUrls.has(dedupeKey)) continue;
         seenUrls.add(dedupeKey);
@@ -761,6 +778,7 @@ async function run() {
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
+        if (isSpamTitle(article.title)) continue;
         const dedupeKey = article.url + '|' + channelName;
         if (seenUrls.has(dedupeKey)) continue;
         seenUrls.add(dedupeKey);
