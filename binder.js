@@ -707,12 +707,13 @@ async function run() {
     }
   }
 
-  // Phase 1c: custom channels via NewsAPI
+  // Phase 1c: custom channels via NewsAPI (last 24h, max 100 per channel)
   const customChannelNames = await loadCustomChannels();
   if (customChannelNames.length > 0) {
+    const customFrom24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     console.log('\nCustom channels: ' + customChannelNames.join(', '));
     for (const channelName of customChannelNames) {
-      const articles = await fetchNewsApiArticles(expandChannelQuery(channelName));
+      const articles = await fetchNewsApiArticles(expandChannelQuery(channelName), customFrom24h);
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
