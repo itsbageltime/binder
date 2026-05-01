@@ -484,11 +484,24 @@ async function loadSeenUrls() {
   }
 }
 
+async function pruneSeenUrls() {
+  if (!supabase) return;
+  try {
+    const cutoff = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const { error } = await supabase.from('seen_urls').delete().lt('seen_at', cutoff);
+    if (error) console.warn('Could not prune seen_urls:', error.message);
+    else console.log('Pruned seen_urls older than 7 days.');
+  } catch(e) {
+    console.warn('Could not prune seen_urls:', e.message);
+  }
+}
+
 async function markUrlsSeen(urls) {
   if (!supabase || urls.length === 0) return;
+  const now = new Date().toISOString();
   try {
     const { error } = await supabase.from('seen_urls').upsert(
-      urls.map(url => ({ url })),
+      urls.map(url => ({ url, seen_at: now })),
       { onConflict: 'url', ignoreDuplicates: true }
     );
     if (error) console.warn('Could not write seen_urls:', error.message);
@@ -634,6 +647,7 @@ async function fetchNewsApiArticles(query) {
 
 async function run() {
   console.log('Building Binder pipeline...\n');
+  await pruneSeenUrls();
   const followed = await loadFollowedJournalists();
   const seenUrls = await loadSeenUrls();
   console.log('Cross-run dedup: ' + seenUrls.size + ' URLs already seen.\n');

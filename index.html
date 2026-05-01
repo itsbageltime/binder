@@ -945,15 +945,16 @@ function personalScore(c){
 }
 
 function formatRunLabel(runDate,createdAt){
-  var today=new Date().toISOString().split('T')[0];
-  var yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
   var timeStr='';
-  if(createdAt){
-    var d=new Date(createdAt);
-    timeStr=' '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(' ','');
+  var refTime=createdAt?new Date(createdAt):null;
+  if(refTime&&!isNaN(refTime)){
+    timeStr=' '+refTime.toLocaleTimeString([],{hour:'numeric',minute:'2-digit',hour12:true}).toLowerCase().replace(/\s+/g,'');
+    var now=new Date();
+    var todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    var yesterdayStart=new Date(todayStart.getTime()-86400000);
+    if(refTime>=todayStart)return'Today'+timeStr;
+    if(refTime>=yesterdayStart)return'Yesterday'+timeStr;
   }
-  if(runDate===today)return'Today'+timeStr;
-  if(runDate===yesterday)return'Yesterday'+timeStr;
   var d=new Date(runDate+'T12:00:00');
   return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})+timeStr;
 }
@@ -962,7 +963,7 @@ function buildRunTimestamps(){
   var map={};
   allCards.forEach(function(c){
     var run=c.pipelineRun||'unknown';
-    if(!map[run]||c.createdAt&&c.createdAt<map[run])map[run]=c.createdAt||'';
+    if(!map[run]||c.createdAt&&c.createdAt>map[run])map[run]=c.createdAt||'';
   });
   return map;
 }
@@ -999,14 +1000,12 @@ function buildPageContent(el,channelName,live){
     var batch=groups[runDate];
     batch.sort(function(a,b){return b._pScore-a._pScore;});
     if(channelName!=='all'){batch=batch.slice(0,10);}
-    if(i>0){
-      var divider=document.createElement('div');
-      divider.className='run-divider';
-      divider.innerHTML='<div class="run-divider-line"></div>'+
-        '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,runTimestamps[runDate]||''))+'</span>'+
-        '<div class="run-divider-line"></div>';
-      el.appendChild(divider);
-    }
+    var divider=document.createElement('div');
+    divider.className='run-divider';
+    divider.innerHTML='<div class="run-divider-line"></div>'+
+      '<span class="run-divider-label">'+escHtml(formatRunLabel(runDate,runTimestamps[runDate]||''))+'</span>'+
+      '<div class="run-divider-line"></div>';
+    el.appendChild(divider);
     batch.forEach(function(c){
       var card=createCardEl(c);
       el.appendChild(card);
