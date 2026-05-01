@@ -707,12 +707,12 @@ async function run() {
   }
   // Phase 1b: NewsAPI supplement for hardcoded channels (last 24h)
   if (NEWSAPI_KEY) {
-    const from24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    console.log('\nNewsAPI supplement for hardcoded channels (from ' + from24h.slice(0, 16) + 'Z)...');
+    const from48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    console.log('\nNewsAPI supplement for hardcoded channels (from ' + from48h.slice(0, 16) + 'Z)...');
     for (const channel of channels) {
       const query = CHANNEL_NEWSAPI_QUERIES[channel.name];
       if (!query) continue;
-      const articles = await fetchNewsApiArticles(query, from24h);
+      const articles = await fetchNewsApiArticles(query, from48h);
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
@@ -729,7 +729,7 @@ async function run() {
   // Phase 1c: custom channels via NewsAPI (last 24h, max 100 per channel)
   const customChannelNames = await loadCustomChannels();
   if (customChannelNames.length > 0) {
-    const customFrom24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const customFrom24h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
     console.log('\nCustom channels: ' + customChannelNames.join(', '));
     for (const channelName of customChannelNames) {
       const articles = await fetchNewsApiArticles(expandChannelQuery(channelName), customFrom24h);
