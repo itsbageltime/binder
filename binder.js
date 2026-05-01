@@ -525,6 +525,21 @@ async function loadFollowedJournalists() {
 
 const HARDCODED_CHANNELS = new Set(channels.map(c => c.name));
 
+// ─── NewsAPI queries for hardcoded channels ───────────────────────────────────
+const CHANNEL_NEWSAPI_QUERIES = {
+  'Architecture':        'architecture building design',
+  'Design':              'industrial design product design',
+  'Technology':          'technology AI software',
+  'Energy & Climate':    'energy climate renewable solar',
+  'Urban Development':   'urban city planning housing',
+  'Business & Startups': 'startup business funding',
+  'Science':             'science research discovery',
+  'Arts & Culture':      'art culture music',
+  'Film':                'film cinema movie',
+  'Fashion':             'fashion design style',
+  'Politics & World':    'politics world news',
+};
+
 // ─── Custom channel query expansion ──────────────────────────────────────────
 const QUERY_EXPANSIONS = {
   'battery': 'energy grid electricity power',
@@ -613,14 +628,16 @@ async function loadCustomChannels() {
   }
 }
 
-async function fetchNewsApiArticles(query) {
+async function fetchNewsApiArticles(query, from) {
   if (!NEWSAPI_KEY) {
     console.warn('  NEWSAPI_KEY not set — skipping "' + query + '"');
     return [];
   }
   try {
     const url = 'https://newsapi.org/v2/everything?q=' + encodeURIComponent(query) +
-      '&language=en&sortBy=publishedAt&pageSize=100&apiKey=' + NEWSAPI_KEY;
+      '&language=en&sortBy=publishedAt&pageSize=100' +
+      (from ? '&from=' + encodeURIComponent(from) : '') +
+      '&apiKey=' + NEWSAPI_KEY;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.warn('  NewsAPI HTTP ' + res.status + ' for "' + query + '"');
@@ -630,7 +647,6 @@ async function fetchNewsApiArticles(query) {
     if (json.status !== 'ok' || !Array.isArray(json.articles)) return [];
     return json.articles
       .filter(a => a.title && a.description && a.url && a.title !== '[Removed]')
-      .slice(0, 50)
       .map(a => ({
         title: a.title || '',
         description: (a.description || '').slice(0, 400),
@@ -670,7 +686,28 @@ async function run() {
       }
     }
   }
-  // Phase 1b: custom channels via NewsAPI
+  // Phase 1b: NewsAPI supplement for hardcoded channels (last 24h)
+  if (NEWSAPI_KEY) {
+    const from24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    console.log('\nNewsAPI supplement for hardcoded channels (from ' + from24h.slice(0, 16) + 'Z)...');
+    for (const channel of channels) {
+      const query = CHANNEL_NEWSAPI_QUERIES[channel.name];
+      if (!query) continue;
+      const articles = await fetchNewsApiArticles(query, from24h);
+      let added = 0;
+      for (const article of articles) {
+        if (!article.title || !article.description) continue;
+        const dedupeKey = article.url + '|' + channel.name;
+        if (seenUrls.has(dedupeKey)) continue;
+        seenUrls.add(dedupeKey);
+        queue.push({ article, channelName: channel.name });
+        added++;
+      }
+      console.log('  "' + channel.name + '" (NewsAPI): ' + added + ' new articles');
+    }
+  }
+
+  // Phase 1c: custom channels via NewsAPI
   const customChannelNames = await loadCustomChannels();
   if (customChannelNames.length > 0) {
     console.log('\nCustom channels: ' + customChannelNames.join(', '));
