@@ -293,6 +293,70 @@ Article description: DESCRIPTION
 
 Respond with only the one sentence insight, or SKIP. Nothing else.`;
 
+const ARCHITECTURE_INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed for architecture and built-environment enthusiasts.
+
+Your job: extract the single most interesting insight from this article and express it in one sentence of 12 words or less.
+
+RULE ZERO — NON-NEGOTIABLE:
+Always name the subject first — the building, project, firm, or architect the insight belongs to. Never open with a material quality, spatial observation, or abstract claim without first establishing what it belongs to.
+
+TWO FILTERS — BOTH MUST PASS:
+Filter 1 — Specific: the insight must name a specific project, decision, material, scale, award, or fact tied to a named subject. Vague descriptions of intent or aesthetic fail.
+Filter 2 — Worth sharing: would an architecture enthusiast say this to a colleague? A notable project, an interesting structural or material choice, an award, a significant commission — these all pass. If the sentence could describe any building, it fails.
+
+FAIL CONDITIONS:
+- No subject: opens with a quality or observation before naming what it belongs to
+- Generic: uses filler like "this explores..." "this reimagines..." "this challenges..."
+- No specificity: describes a feeling, style, or intention without a named fact or detail
+
+EXAMPLES:
+PASS: "Bjarke Ingels Group's new Toronto tower uses a spiraling facade to shade its own balconies."
+PASS: "The 2025 Pritzker Prize goes to Liu Jiakun — the first Chinese laureate in fifteen years."
+PASS: "Adjaye Associates' Accra museum is built from rammed earth sourced entirely on site."
+PASS: "Zaha Hadid Architects' Beijing stadium seats 68,000 and opens without a single interior column."
+
+FAIL: "A new pavilion explores the relationship between light and space." — no subject, no specificity
+FAIL: "The building uses sustainable materials to create a connection with its surroundings." — generic
+
+If the article does not contain an insight that passes both filters, respond with exactly: SKIP
+
+Article title: TITLE
+Article description: DESCRIPTION
+
+Respond with only the one sentence insight, or SKIP. Nothing else.`;
+
+const CULTURE_INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed for arts and culture enthusiasts.
+
+Your job: extract the single most interesting insight from this article and express it in one sentence of 12 words or less.
+
+RULE ZERO — NON-NEGOTIABLE:
+Always name the subject first — the artist, album, film, exhibition, institution, or cultural figure the insight belongs to. Never open with a trend, observation, or abstract claim without first establishing what it belongs to.
+
+TWO FILTERS — BOTH MUST PASS:
+Filter 1 — Specific: the insight must name a specific work, person, institution, moment, or fact. General statements about culture, the industry, or trends fail.
+Filter 2 — Worth sharing: would a culture enthusiast mention this to a friend? A significant release, a notable exhibition, an interesting fact about a work or artist, a cultural milestone — these all pass. No tension or contradiction required. If the sentence could describe any release or show, it fails.
+
+FAIL CONDITIONS:
+- No subject: opens with a trend or observation before naming what it belongs to
+- Generic: uses filler like "this marks a shift..." "this signals..." "this celebrates..."
+- No specificity: describes a mood, theme, or reception without naming a concrete detail
+
+EXAMPLES:
+PASS: "Kendrick Lamar's Super Bowl halftime show drew the highest TV audience in NFL history."
+PASS: "The Met's new wing for contemporary African art opens in September — its first permanent gallery of its kind."
+PASS: "Noah Baumbach's new film stars Adam Driver and shot entirely in black and white on 35mm."
+PASS: "Beyoncé's Renaissance film became the highest-grossing concert film ever in its opening weekend."
+
+FAIL: "A major new exhibition explores themes of identity and belonging." — no subject, no specificity
+FAIL: "The artist's latest work continues their exploration of memory and loss." — generic
+
+If the article does not contain an insight that passes both filters, respond with exactly: SKIP
+
+Article title: TITLE
+Article description: DESCRIPTION
+
+Respond with only the one sentence insight, or SKIP. Nothing else.`;
+
 const BIO_PROMPT = `Introduce this journalist in 2-3 sentences, the way a trusted colleague would before a panel — warm, direct, and genuinely informative.
 
 Journalist: AUTHOR
@@ -401,7 +465,11 @@ async function fetchFeed(url) {
 }
 
 async function extractInsight(article, channel) {
-  const template = channel === 'Design' ? DESIGN_INSIGHT_PROMPT : INSIGHT_PROMPT;
+  let template;
+  if (channel === 'Design') template = DESIGN_INSIGHT_PROMPT;
+  else if (channel === 'Architecture') template = ARCHITECTURE_INSIGHT_PROMPT;
+  else if (channel === 'Arts & Culture') template = CULTURE_INSIGHT_PROMPT;
+  else template = INSIGHT_PROMPT;
   const prompt = template
     .replace('TITLE', article.title)
     .replace('DESCRIPTION', article.description);
