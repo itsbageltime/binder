@@ -1558,12 +1558,15 @@ var menuChSelected=new Set();
 var menuCustomEdits=[];
 
 function initMenuEditChannels(){
-  var standardNames=CHANNEL_DEFS.map(function(c){return c.name;});
+  var standardSet=new Set(CHANNEL_DEFS.map(function(c){return c.name;}));
   var allChans=getUserChannels();
-  menuChSelected=new Set(allChans.filter(function(ch){return standardNames.indexOf(ch)!==-1;}));
-  menuCustomEdits=allChans
-    .filter(function(ch){return standardNames.indexOf(ch)===-1;})
-    .map(function(ch){return {orig:ch,current:ch};});
+
+  menuChSelected=new Set();
+  menuCustomEdits=[];
+  allChans.forEach(function(ch){
+    if(standardSet.has(ch))menuChSelected.add(ch);
+    else menuCustomEdits.push({orig:ch,current:ch});
+  });
 
   var grid=document.getElementById('menuChGrid');
   grid.innerHTML='';
@@ -1575,13 +1578,8 @@ function initMenuEditChannels(){
     tile.dataset.channel=ch.name;
     tile.innerHTML='<div class="channel-tile-name">'+escHtml(ch.name)+'</div><div class="channel-tile-desc">'+escHtml(ch.desc)+'</div>';
     tile.addEventListener('click',function(){
-      if(menuChSelected.has(ch.name)){
-        menuChSelected.delete(ch.name);
-        tile.classList.remove('selected');
-      }else{
-        menuChSelected.add(ch.name);
-        tile.classList.add('selected');
-      }
+      if(menuChSelected.has(ch.name)){menuChSelected.delete(ch.name);tile.classList.remove('selected');}
+      else{menuChSelected.add(ch.name);tile.classList.add('selected');}
       updateMenuChCount();
     });
     grid.appendChild(tile);
@@ -1593,8 +1591,9 @@ function initMenuEditChannels(){
 function renderMenuCustomChList(){
   var section=document.getElementById('menuCustomChSection');
   var list=document.getElementById('menuCustomChList');
+  if(!section||!list)return;
   if(!menuCustomEdits.length){section.style.display='none';return;}
-  section.style.display='';
+  section.style.display='block';
   list.innerHTML=menuCustomEdits.map(function(e,i){
     return '<div class="menu-custom-row">'+
       '<input class="menu-custom-input" data-idx="'+i+'" value="'+escHtml(e.current)+'" placeholder="Channel name" oninput="menuCustomEdits[this.dataset.idx].current=this.value">'+
