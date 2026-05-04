@@ -1596,8 +1596,17 @@ function renderMenuCustomChList(){
   if(!menuCustomEdits.length){section.style.display='none';return;}
   section.style.display='';
   list.innerHTML=menuCustomEdits.map(function(e,i){
-    return '<div class="menu-custom-row"><input class="menu-custom-input" data-idx="'+i+'" value="'+escHtml(e.current)+'" placeholder="Channel name" oninput="menuCustomEdits[this.dataset.idx].current=this.value"></div>';
+    return '<div class="menu-custom-row">'+
+      '<input class="menu-custom-input" data-idx="'+i+'" value="'+escHtml(e.current)+'" placeholder="Channel name" oninput="menuCustomEdits[this.dataset.idx].current=this.value">'+
+      '<button class="channel-chip-remove" style="font-size:18px;color:#555;flex-shrink:0;" onclick="removeMenuCustomChannel('+i+')">×</button>'+
+    '</div>';
   }).join('');
+}
+
+function removeMenuCustomChannel(i){
+  menuCustomEdits.splice(i,1);
+  renderMenuCustomChList();
+  updateMenuChCount();
 }
 
 function updateMenuChCount(){
