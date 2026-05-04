@@ -187,6 +187,10 @@ header .date { font-size: 12px; color: #555; }
 .channel-custom-input { flex: 1; padding: 10px 14px; background: #111; border: 1px solid #222; border-radius: 10px; color: #f0f0f0; font-size: 14px; outline: none; -webkit-appearance: none; }
 .channel-custom-add { padding: 10px 16px; background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; color: #888; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.menu-custom-section { padding: 0 20px 8px; }
+.menu-custom-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; margin-bottom: 8px; }
+.menu-custom-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.menu-custom-input { flex: 1; background: #111; border: 1px solid #222; border-radius: 8px; color: #ccc; font-size: 13px; padding: 8px 10px; outline: none; -webkit-appearance: none; }
 .channel-chip { display: flex; align-items: center; gap: 6px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 20px; padding: 4px 10px 4px 12px; font-size: 12px; color: #888; }
 .channel-chip-remove { background: none; border: none; color: #555; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
 .channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid #111; }
@@ -358,8 +362,12 @@ header .date { font-size: 12px; color: #555; }
       </div>
       <div style="padding: 12px 20px 20px;">
         <div class="channel-grid" id="menuChGrid"></div>
-        <div class="menu-ch-error" id="menuChError"></div>
       </div>
+      <div class="menu-custom-section" id="menuCustomChSection" style="display:none;">
+        <div class="menu-custom-section-label">Your custom feeds</div>
+        <div id="menuCustomChList"></div>
+      </div>
+      <div style="padding: 0 20px 20px;"><div class="menu-ch-error" id="menuChError"></div></div>
     </div>
     <div class="settings-panel-footer">
       <button class="channel-start-btn" id="menuChSaveBtn" onclick="saveChannelEdits()">Save feeds</button>
@@ -1547,9 +1555,16 @@ async function saveChannelRearrange(){
 
 // ─── Edit channels (inline toggle list) ──────────────────────────────────────
 var menuChSelected=new Set();
+var menuCustomEdits=[];
 
 function initMenuEditChannels(){
-  menuChSelected=new Set(getUserChannels());
+  var standardNames=CHANNEL_DEFS.map(function(c){return c.name;});
+  var allChans=getUserChannels();
+  menuChSelected=new Set(allChans.filter(function(ch){return standardNames.indexOf(ch)!==-1;}));
+  menuCustomEdits=allChans
+    .filter(function(ch){return standardNames.indexOf(ch)===-1;})
+    .map(function(ch){return {orig:ch,current:ch};});
+
   var grid=document.getElementById('menuChGrid');
   grid.innerHTML='';
   document.getElementById('menuChError').textContent='';
@@ -1571,20 +1586,43 @@ function initMenuEditChannels(){
     });
     grid.appendChild(tile);
   });
+  renderMenuCustomChList();
   updateMenuChCount();
 }
 
+function renderMenuCustomChList(){
+  var section=document.getElementById('menuCustomChSection');
+  var list=document.getElementById('menuCustomChList');
+  if(!menuCustomEdits.length){section.style.display='none';return;}
+  section.style.display='';
+  list.innerHTML=menuCustomEdits.map(function(e,i){
+    return '<div class="menu-custom-row"><input class="menu-custom-input" data-idx="'+i+'" value="'+escHtml(e.current)+'" placeholder="Channel name" oninput="menuCustomEdits[this.dataset.idx].current=this.value"></div>';
+  }).join('');
+}
+
 function updateMenuChCount(){
-  var n=menuChSelected.size;
+  var n=menuChSelected.size+menuCustomEdits.length;
   document.getElementById('menuChCount').textContent=n+' selected';
 }
 
 async function saveChannelEdits(){
-  var channels=Array.from(menuChSelected);
-  if(channels.length<3){document.getElementById('menuChError').textContent='Select at least 3 feeds.';return;}
+  var stdChannels=Array.from(menuChSelected);
+  var validCustom=menuCustomEdits.filter(function(e){return e.current.trim();});
+  var total=stdChannels.length+validCustom.length;
+  if(total<3){document.getElementById('menuChError').textContent='Select at least 3 feeds.';return;}
   document.getElementById('menuChError').textContent='';
-  if(userProfile)userProfile.channels=channels;
-  if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:channels});
+
+  // Rename cards in Supabase for any changed custom channel names
+  if(sb&&currentUser){
+    var renames=validCustom.filter(function(e){return e.current.trim()!==e.orig;});
+    for(var i=0;i<renames.length;i++){
+      await sb.from('cards').update({channel:renames[i].current.trim()}).eq('channel',renames[i].orig);
+    }
+  }
+
+  var finalChannels=stdChannels.concat(validCustom.map(function(e){return e.current.trim();}));
+  if(userProfile)userProfile.channels=finalChannels;
+  if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:finalChannels});
   buildChannels();renderFeed();
   closeSettingsScreen('screenEditFeeds');
 }
