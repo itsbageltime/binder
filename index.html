@@ -1665,11 +1665,12 @@ function addMenuCustomChannel(){
   var val=input.value.trim();
   if(!val)return;
   var exists=menuCustomEdits.some(function(e){return e.current===val;})||
-    Array.from(menuChSelected).indexOf(val)!==-1;
+    menuChSelected.has(val);
   if(exists){input.value='';return;}
   var e={orig:'',current:val,selected:true};
   menuCustomEdits.push(e);
   var idx=menuCustomEdits.length-1;
+  console.log('[addMenuCustomChannel] added "'+val+'" at idx '+idx+', menuCustomEdits.length='+menuCustomEdits.length);
   document.getElementById('menuChGrid').appendChild(buildCustomTile(e,idx));
   input.value='';
   updateMenuChCount();
@@ -1678,6 +1679,8 @@ function addMenuCustomChannel(){
 async function saveChannelEdits(){
   var stdChannels=Array.from(menuChSelected);
   var activeCustom=menuCustomEdits.filter(function(e){return e.selected&&e.current.trim();});
+  console.log('[saveChannelEdits] menuCustomEdits=',JSON.stringify(menuCustomEdits));
+  console.log('[saveChannelEdits] activeCustom=',JSON.stringify(activeCustom));
   var total=stdChannels.length+activeCustom.length;
   if(total<3){document.getElementById('menuChError').textContent='Select at least 3 feeds.';return;}
   document.getElementById('menuChError').textContent='';
@@ -1691,8 +1694,14 @@ async function saveChannelEdits(){
   }
 
   var finalChannels=stdChannels.concat(activeCustom.map(function(e){return e.current.trim();}));
-  if(userProfile)userProfile.channels=finalChannels;
-  if(sb&&currentUser)await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:finalChannels});
+  console.log('[saveChannelEdits] finalChannels=',JSON.stringify(finalChannels));
+  userProfile=userProfile||{};
+  userProfile.channels=finalChannels;
+  if(sb&&currentUser){
+    var res=await sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:finalChannels});
+    if(res.error)console.error('[saveChannelEdits] upsert error',res.error);
+    else console.log('[saveChannelEdits] upsert ok');
+  }
   buildChannels();renderFeed();
   closeSettingsScreen('screenEditFeeds');
 }
