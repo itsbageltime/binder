@@ -185,7 +185,8 @@ header .date { font-size: 12px; color: #555; }
 .channel-custom-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #444; margin-bottom: 8px; }
 .channel-custom-row { display: flex; gap: 8px; }
 .channel-custom-input { flex: 1; padding: 10px 14px; background: #111; border: 1px solid #222; border-radius: 10px; color: #f0f0f0; font-size: 14px; outline: none; -webkit-appearance: none; }
-.channel-custom-add { padding: 10px 16px; background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; color: #888; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.channel-custom-add { padding: 10px 16px; background: #1a1a1a; border: 1px solid #252525; border-radius: 10px; color: #888; font-size: 13px; cursor: pointer; white-space: nowrap; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.channel-custom-add.ready { background: #1a3a1a; border-color: #4CAF50; color: #4CAF50; }
 .channel-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .channel-tile-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .channel-tile-top .channel-tile-name { margin-bottom: 0; flex: 1; min-width: 0; }
@@ -692,6 +693,10 @@ function addCustomChannel(){
 }
 document.getElementById('customChannelInput').addEventListener('keydown',function(e){if(e.key==='Enter')addCustomChannel();});
 document.getElementById('menuAddChInput').addEventListener('keydown',function(e){if(e.key==='Enter')addMenuCustomChannel();});
+document.getElementById('menuAddChInput').addEventListener('input',function(){
+  var btn=document.querySelector('#screenEditFeeds .channel-custom-add');
+  if(btn)btn.classList.toggle('ready',this.value.trim().length>0);
+});
 
 function removeCustomChannel(name){
   customChannels=customChannels.filter(function(c){return c!==name;});
@@ -1573,6 +1578,8 @@ function initMenuEditChannels(){
   grid.innerHTML='';
   document.getElementById('menuChError').textContent='';
   document.getElementById('menuAddChInput').value='';
+  var addBtn=document.querySelector('#screenEditFeeds .channel-custom-add');
+  if(addBtn)addBtn.classList.remove('ready');
 
   CHANNEL_DEFS.forEach(function(ch){
     var sel=menuChSelected.has(ch.name);
@@ -1673,6 +1680,8 @@ function addMenuCustomChannel(){
   console.log('[addMenuCustomChannel] added "'+val+'" at idx '+idx+', menuCustomEdits.length='+menuCustomEdits.length);
   document.getElementById('menuChGrid').appendChild(buildCustomTile(e,idx));
   input.value='';
+  var addBtn=document.querySelector('#screenEditFeeds .channel-custom-add');
+  if(addBtn)addBtn.classList.remove('ready');
   updateMenuChCount();
 }
 
