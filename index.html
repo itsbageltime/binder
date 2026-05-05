@@ -55,8 +55,15 @@ header { padding: 14px 20px 8px; display: flex; align-items: center; justify-con
 header h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.3px; color: var(--body-text); font-family: 'Inter', sans-serif; }
 header .date { font-size: 12px; color: var(--muted); }
 .header-right { display: flex; align-items: center; gap: 10px; }
-.theme-toggle { background: none; border: none; cursor: pointer; padding: 4px; color: var(--muted); font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.header-time-icon { font-size: 14px; line-height: 1; }
 .header-greeting { font-size: 12px; color: var(--muted); font-family: 'Inter', sans-serif; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; }
+.theme-switch { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+.theme-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.theme-switch-track { position: absolute; inset: 0; border-radius: 26px; background: var(--divider); border: 1px solid var(--card-border); cursor: pointer; transition: background 0.2s; }
+.theme-switch-track::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: var(--muted); top: 2px; left: 2px; transition: transform 0.2s, background 0.2s; }
+.theme-switch input:checked + .theme-switch-track { background: var(--tab-active-bg); }
+.theme-switch input:checked + .theme-switch-track::after { transform: translateX(18px); background: var(--tab-active-text); }
 .header-user { width: 28px; height: 28px; border-radius: 50%; background: var(--card-surface); border: 1px solid var(--card-border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; flex-shrink: 0; }
 /* ── User menu dropdown ─────────────────────────────────────────────────────── */
 .signout-popover { position: absolute; top: calc(100% + 4px); right: 16px; background: var(--card-surface); border: 1px solid var(--card-border); border-radius: 14px; z-index: 100; display: none; width: 264px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.65); }
@@ -140,29 +147,29 @@ header .date { font-size: 12px; color: var(--muted); }
 /* ── Hero card ───────────────────────────────────────────────────────────────── */
 .feed-card.hero { margin-bottom: 8px; }
 .hero-img-wrap { position: relative; height: 160px; overflow: hidden; }
-.hero-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 0; }
+.hero-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; border-radius: 0; }
 .hero-channel-pill { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); border-radius: 20px; padding: 3px 9px; font-size: 10px; font-family: 'Inter', sans-serif; color: #fff; letter-spacing: 0.8px; text-transform: uppercase; }
 .hero-body { padding: 14px 14px 12px; }
-.hero-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 400; line-height: 1.5; color: var(--insight-color); margin-bottom: 10px; }
+.hero-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 17px; font-weight: 400; line-height: 1.55; letter-spacing: 0.015em; color: var(--insight-color); margin-bottom: 10px; }
 .hero-meta { display: flex; align-items: center; justify-content: space-between; }
 
 /* ── Pair card ───────────────────────────────────────────────────────────────── */
 .feed-card.pair { margin-bottom: 0; border-radius: 14px; }
 .pair-img-wrap { height: 80px; overflow: hidden; position: relative; }
-.pair-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pair-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
 .pair-body { padding: 10px 11px 10px; }
 .pair-channel { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-family: 'Inter', sans-serif; margin-bottom: 6px; }
-.pair-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--insight-color); margin-bottom: 8px; }
+.pair-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 13px; font-weight: 400; line-height: 1.55; letter-spacing: 0.015em; color: var(--insight-color); margin-bottom: 8px; }
 .pair-meta { display: flex; align-items: center; justify-content: space-between; }
 
 /* ── Row card ────────────────────────────────────────────────────────────────── */
 .feed-card.row { display: flex; flex-wrap: wrap; align-items: stretch; min-height: 88px; }
 .row-body { flex: 2; padding: 13px 12px 11px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
 .row-channel { font-size: 9px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); font-family: 'Inter', sans-serif; margin-bottom: 5px; }
-.row-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 400; line-height: 1.45; color: var(--insight-color); flex: 1; }
+.row-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 400; line-height: 1.55; letter-spacing: 0.015em; color: var(--insight-color); flex: 1; }
 .row-meta { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; }
 .row-img-wrap { flex: 1; min-width: 0; max-width: 38%; overflow: hidden; }
-.row-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.row-img-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; display: block; }
 .feed-card.row .feed-card-expanded { flex: 0 0 100%; width: 100%; }
 
 /* ── Shared card parts ───────────────────────────────────────────────────────── */
@@ -192,7 +199,7 @@ header .date { font-size: 12px; color: var(--muted); }
 .deck-card-channel { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); font-family: 'Inter', sans-serif; }
 .deck-remove { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1; }
 .deck-remove:hover { color: var(--body-text); }
-.deck-card-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 400; color: var(--insight-color); line-height: 1.5; margin-bottom: 10px; }
+.deck-card-insight { font-family: 'Playfair Display', Georgia, serif; font-size: 15px; font-weight: 400; color: var(--insight-color); line-height: 1.55; letter-spacing: 0.015em; margin-bottom: 10px; }
 .deck-card-meta { font-size: 12px; color: var(--muted); font-family: 'Inter', sans-serif; display: flex; justify-content: space-between; align-items: center; }
 .roster-view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
 .roster-toggle-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--card-border); background: transparent; color: var(--muted); font-size: 12px; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s; }
@@ -342,8 +349,8 @@ header .date { font-size: 12px; color: var(--muted); }
 <header>
   <h1>Binder</h1>
   <div class="header-right">
+    <span class="header-time-icon" id="headerTimeIcon"></span>
     <span class="header-greeting" id="dateLabel"></span>
-    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     <div class="header-user" id="headerUser" onclick="toggleUserPopover()"></div>
   </div>
   <div class="signout-popover" id="signoutPopover">
@@ -479,6 +486,16 @@ header .date { font-size: 12px; color: var(--muted); }
         <input class="menu-input" id="menuUsernameInput" type="text" placeholder="your_username" autocomplete="username" autocapitalize="none">
         <div class="menu-field-error" id="menuUsernameError"></div>
         <button class="menu-save-btn" id="menuSaveUsernameBtn" onclick="saveMenuUsername()">Save</button>
+        <div class="settings-row" style="margin-top:28px;">
+          <div>
+            <div class="menu-field-label" style="margin-bottom:2px;">Appearance</div>
+            <div style="font-size:13px;color:var(--muted);font-family:'Inter',sans-serif;" id="themeLabel">Dark</div>
+          </div>
+          <label class="theme-switch">
+            <input type="checkbox" id="themeCheckbox" onchange="toggleTheme()">
+            <span class="theme-switch-track"></span>
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -537,9 +554,12 @@ var selectedChannelTiles=new Set();
 var customChannels=[];
 
 function updateGreeting(){
+  var h=new Date().getHours();
+  var icon=document.getElementById('headerTimeIcon');
+  if(icon)icon.textContent=(h>=6&&h<18)?'☀️':'🌙';
   var el=document.getElementById('dateLabel');
   var name=userProfile&&userProfile.username;
-  if(name){var h=new Date().getHours();el.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+name;}
+  if(name){el.textContent=(h<12?'Good morning':h<17?'Good afternoon':'Good evening')+', '+name;}
   else{el.textContent='';}
 }
 updateGreeting();
@@ -552,14 +572,17 @@ var currentTheme=(function(){
 function applyTheme(t){
   currentTheme=t;
   document.body.classList.toggle('light',t==='light');
-  var btn=document.getElementById('themeToggle');
-  if(btn)btn.textContent=t==='light'?'🌙':'☀️';
+  var cb=document.getElementById('themeCheckbox');
+  if(cb)cb.checked=(t==='light');
+  var lbl=document.getElementById('themeLabel');
+  if(lbl)lbl.textContent=t==='light'?'Light':'Dark';
   try{localStorage.setItem('binder-theme',t);}catch(e){}
 }
 applyTheme(currentTheme);
 
 function toggleTheme(){
-  applyTheme(currentTheme==='dark'?'light':'dark');
+  var cb=document.getElementById('themeCheckbox');
+  applyTheme(cb&&cb.checked?'light':'dark');
   if(sb&&currentUser&&userProfile){
     sb.from('profiles').update({theme:currentTheme}).eq('user_id',currentUser.id).then(function(){});
     if(userProfile)userProfile.theme=currentTheme;
@@ -1124,12 +1147,30 @@ function buildRunTimestamps(){
 
 function buildPageContent(el,channelName,live){
   var userChans=getUserChannels();
-  var pool;
+  el.querySelectorAll('.feed-card').forEach(function(c){cardObserver.unobserve(c);});
+  el.innerHTML='';
+
   if(channelName==='all'){
-    pool=allCards.filter(function(c){return userChans.indexOf(c.channel)!==-1;});
-  }else{
-    pool=allCards.filter(function(c){return c.channel===channelName;});
+    // One best card per user channel, ordered by personalScore descending
+    var pool=allCards.filter(function(c){return userChans.indexOf(c.channel)!==-1&&!!c.insight;});
+    pool.forEach(function(c){c._pScore=personalScore(c);});
+    var best={};
+    pool.forEach(function(c){
+      var ch=c.channel;
+      if(!best[ch]||c._pScore>best[ch]._pScore)best[ch]=c;
+    });
+    var batch=userChans.map(function(ch){return best[ch];}).filter(Boolean);
+    batch.sort(function(a,b){return b._pScore-a._pScore;});
+    if(batch.length===0){
+      el.innerHTML='<div class="empty-state">No cards yet.</div>';
+      return;
+    }
+    appendBatch(el,batch,true,live);
+    appendSurvey(el);
+    return;
   }
+
+  var pool=allCards.filter(function(c){return c.channel===channelName;});
   pool.forEach(function(c){c._pScore=personalScore(c);});
   var runTimestamps=buildRunTimestamps();
   var groups={};
@@ -1139,12 +1180,10 @@ function buildPageContent(el,channelName,live){
     groups[run].push(c);
   });
   var runDates=Object.keys(groups).sort(function(a,b){return b.localeCompare(a);});
-  el.querySelectorAll('.feed-card').forEach(function(c){cardObserver.unobserve(c);});
-  el.innerHTML='';
   if(runDates.length===0){
-    var isCustom=channelName!=='all'&&CHANNEL_DEFS.every(function(c){return c.name!==channelName;});
+    var isCustom=CHANNEL_DEFS.every(function(c){return c.name!==channelName;});
     if(isCustom){
-      el.innerHTML='<div class="empty-state" style="line-height:1.9">Your <em>'+escHtml(channelName)+'</em> feed will populate on the next pipeline run.<br><span style="color:#555;font-size:13px">If it stays empty, try being more specific — "Electric vehicle batteries" works better than "Batteries", and "Sustainable architecture" works better than "Buildings".</span></div>';
+      el.innerHTML='<div class="empty-state" style="line-height:1.9">Your <em>'+escHtml(channelName)+'</em> feed will populate on the next pipeline run.<br><span style="color:var(--muted);font-size:13px">If it stays empty, try being more specific — "Electric vehicle batteries" works better than "Batteries", and "Sustainable architecture" works better than "Buildings".</span></div>';
     }else{
       el.innerHTML='<div class="empty-state">No cards yet.</div>';
     }
@@ -1153,7 +1192,7 @@ function buildPageContent(el,channelName,live){
   runDates.forEach(function(runDate,i){
     var batch=groups[runDate];
     batch.sort(function(a,b){return b._pScore-a._pScore;});
-    if(channelName!=='all'){batch=batch.slice(0,10);}
+    batch=batch.slice(0,10);
     var divider=document.createElement('div');
     divider.className='run-divider';
     divider.innerHTML='<div class="run-divider-line"></div>'+
@@ -1163,10 +1202,7 @@ function buildPageContent(el,channelName,live){
     appendBatch(el,batch,i===0,live);
   });
   appendSurvey(el);
-  // Check channel complete
-  if(channelName!=='all'&&pool.length>0){
-    checkChannelComplete(channelName,pool);
-  }
+  if(pool.length>0)checkChannelComplete(channelName,pool);
 }
 
 function renderFeed(){
@@ -1936,6 +1972,10 @@ async function saveChannelEdits(){
 // ─── Edit username ────────────────────────────────────────────────────────────
 function initMenuEditUser(){
   document.getElementById('menuUsernameInput').value=userProfile&&userProfile.username?userProfile.username:'';
+  var cb=document.getElementById('themeCheckbox');
+  if(cb)cb.checked=(currentTheme==='light');
+  var lbl=document.getElementById('themeLabel');
+  if(lbl)lbl.textContent=currentTheme==='light'?'Light':'Dark';
   document.getElementById('menuUsernameError').textContent='';
   document.getElementById('menuSaveUsernameBtn').disabled=false;
 }
