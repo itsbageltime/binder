@@ -365,6 +365,10 @@ header .date { font-size: 12px; color: #555; }
       </div>
       <div style="padding: 12px 20px 20px;">
         <div class="channel-grid" id="menuChGrid"></div>
+        <div class="channel-custom-row" style="margin-top:12px;">
+          <input class="channel-custom-input" id="menuAddChInput" type="text" placeholder="Add custom feed" autocapitalize="words">
+          <button class="channel-custom-add" onclick="addMenuCustomChannel()">+</button>
+        </div>
         <div class="menu-ch-error" id="menuChError"></div>
       </div>
     </div>
@@ -687,6 +691,7 @@ function addCustomChannel(){
   updateChannelSelectCount();
 }
 document.getElementById('customChannelInput').addEventListener('keydown',function(e){if(e.key==='Enter')addCustomChannel();});
+document.getElementById('menuAddChInput').addEventListener('keydown',function(e){if(e.key==='Enter')addMenuCustomChannel();});
 
 function removeCustomChannel(name){
   customChannels=customChannels.filter(function(c){return c!==name;});
@@ -917,10 +922,7 @@ var cardObserver=new IntersectionObserver(function(entries){
 // ─── Channels / scoring ─────────────────────────────────────────────────────────
 function buildChannels(){
   var userChans=getUserChannels();
-  var cardChanSet=new Set(allCards.map(function(c){return c.channel;}));
-  var combined=['all'];
-  userChans.forEach(function(ch){combined.push(ch);});
-  cardChanSet.forEach(function(ch){if(combined.indexOf(ch)===-1)combined.push(ch);});
+  var combined=['all'].concat(userChans);
   document.getElementById('channels').innerHTML=combined.map(function(t){
     return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" data-channel="'+escHtml(t)+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
   }).join('');
@@ -1570,6 +1572,7 @@ function initMenuEditChannels(){
   var grid=document.getElementById('menuChGrid');
   grid.innerHTML='';
   document.getElementById('menuChError').textContent='';
+  document.getElementById('menuAddChInput').value='';
 
   CHANNEL_DEFS.forEach(function(ch){
     var sel=menuChSelected.has(ch.name);
@@ -1657,6 +1660,21 @@ function updateMenuChCount(){
   document.getElementById('menuChCount').textContent=n+' selected';
 }
 
+function addMenuCustomChannel(){
+  var input=document.getElementById('menuAddChInput');
+  var val=input.value.trim();
+  if(!val)return;
+  var exists=menuCustomEdits.some(function(e){return e.current===val;})||
+    Array.from(menuChSelected).indexOf(val)!==-1;
+  if(exists){input.value='';return;}
+  var e={orig:'',current:val,selected:true};
+  menuCustomEdits.push(e);
+  var idx=menuCustomEdits.length-1;
+  document.getElementById('menuChGrid').appendChild(buildCustomTile(e,idx));
+  input.value='';
+  updateMenuChCount();
+}
+
 async function saveChannelEdits(){
   var stdChannels=Array.from(menuChSelected);
   var activeCustom=menuCustomEdits.filter(function(e){return e.selected&&e.current.trim();});
@@ -1666,7 +1684,7 @@ async function saveChannelEdits(){
 
   // Update cards table for any renamed custom channels
   if(sb&&currentUser){
-    var renames=activeCustom.filter(function(e){return e.current.trim()!==e.orig;});
+    var renames=activeCustom.filter(function(e){return e.orig&&e.current.trim()!==e.orig;});
     for(var i=0;i<renames.length;i++){
       await sb.from('cards').update({channel:renames[i].current.trim()}).eq('channel',renames[i].orig);
     }
