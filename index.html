@@ -116,8 +116,8 @@ header .date { font-size: 12px; color: var(--muted); }
 .settings-panel-title { font-size: 16px; font-weight: 600; color: var(--body-text); }
 .settings-panel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .settings-panel-footer { padding: 16px 20px 32px; border-top: 1px solid var(--divider); flex-shrink: 0; }
-.nav { display: flex; border-top: 1px solid var(--divider); flex-shrink: 0; order: 10; background: var(--bg); padding-bottom: env(safe-area-inset-bottom, 0); }
-.nav-btn { flex: 1; padding: 10px 6px 8px; background: none; border: none; color: var(--nav-inactive); font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Inter', sans-serif; position: relative; }
+.nav { display: flex; border-top: 1px solid var(--divider); flex-shrink: 0; order: 10; background: var(--bg); padding-bottom: env(safe-area-inset-bottom); }
+.nav-btn { flex: 1; min-height: 44px; padding: 10px 6px 8px; background: none; border: none; color: var(--nav-inactive); font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Inter', sans-serif; position: relative; }
 .nav-btn::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--nav-active); position: absolute; top: 4px; opacity: 0; transition: opacity 0.2s; }
 .nav-btn.active { color: var(--nav-active); }
 .nav-btn.active::before { opacity: 1; }
@@ -139,7 +139,8 @@ header .date { font-size: 12px; color: var(--muted); }
 .run-divider-label { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; font-family: 'Inter', sans-serif; }
 
 /* ── Pair grid wrapper ────────────────────────────────────────────────────────── */
-.card-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.card-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; transition: grid-template-columns 0.2s; }
+.card-pair.has-expanded { grid-template-columns: 1fr; }
 
 /* ── Base card ───────────────────────────────────────────────────────────────── */
 .feed-card { background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 14px; margin-bottom: 8px; user-select: none; position: relative; overflow: hidden; }
@@ -1421,13 +1422,17 @@ function attachCardHandlers(div,c){
 function toggleExpand(div,c){
   var exp=div.querySelector('.feed-card-expanded');
   if(!exp)return;
+  var isPair=div.classList.contains('pair');
+  var pairWrap=isPair?div.closest('.card-pair'):null;
   var isOpen=exp.classList.contains('open');
   if(!isOpen){
     exp.classList.add('open');
+    if(pairWrap)pairWrap.classList.add('has-expanded');
     expandedCardUrl=c?c.url:null;
     if(c){expandStartTime[c.url]=Date.now();sessionData.expands++;}
   }else{
     exp.classList.remove('open');
+    if(pairWrap)pairWrap.classList.remove('has-expanded');
     expandedCardUrl=null;
     if(c&&expandStartTime[c.url]){
       var dwell=(Date.now()-expandStartTime[c.url])/1000;
@@ -1654,29 +1659,42 @@ function switchView(view,btn){
   if(view==='archive')renderArchive();
 }
 
-function renderDeck(){
-  var el=document.getElementById('deckContent');
-  if(savedCards.length===0){el.innerHTML='<div class="empty-state">No liked cards yet.<br>Tap ♡ on any card to save it here.</div>';return;}
-  el.innerHTML=savedCards.map(function(s,i){
-    return '<div class="deck-card">'+
-      '<div class="deck-card-header">'+
-        '<div class="deck-card-channel">'+escHtml(s.card.channel)+'</div>'+
-        '<button class="deck-remove" onclick="removeFromDeck('+i+')">×</button>'+
+function createDeckCardEl(s){
+  var c=s.card;
+  var div=document.createElement('div');
+  div.className='feed-card row';
+  div.dataset.url=c.url;
+  div.innerHTML=
+    '<div class="row-body">'+
+      '<div class="row-channel">'+escHtml(c.channel)+'</div>'+
+      '<div class="row-insight">'+escHtml(c.insight)+'</div>'+
+      '<div class="row-meta">'+
+        '<div class="card-byline">'+escHtml(c.source)+(c.author&&c.author!=='Unknown'?' · '+escHtml(c.author):'')+'</div>'+
+        '<div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">'+
+          '<a href="'+escHtml(c.url)+'" target="_blank" style="font-size:12px;color:#4a9eff;text-decoration:none;white-space:nowrap;">Read →</a>'+
+          '<button class="deck-remove" data-action="deck-remove">×</button>'+
+        '</div>'+
       '</div>'+
-      '<div class="deck-card-insight">'+escHtml(s.card.insight)+'</div>'+
-      '<div class="deck-card-meta">'+
-        '<span>'+escHtml(s.card.source)+(s.card.author&&s.card.author!=='Unknown'?' — '+escHtml(s.card.author):'')+'</span>'+
-        '<a href="'+escHtml(s.card.url)+'" target="_blank" style="color:#4a9eff;font-size:12px;text-decoration:none;">Read →</a>'+
-      '</div></div>';
-  }).join('');
+    '</div>'+
+    '<div class="row-img-wrap">'+buildImgTag(c,'')+'</div>';
+  return div;
 }
 
-function removeFromDeck(i){
-  var url=savedCards[i].url;
-  var card=savedCards[i].card;
-  savedCards.splice(i,1);likedUrls.delete(url);
+function renderDeck(){
+  var el=document.getElementById('deckContent');
+  el.innerHTML='';
+  if(savedCards.length===0){
+    el.innerHTML='<div class="empty-state">No liked cards yet.<br>Tap ♡ on any card to save it here.</div>';
+    return;
+  }
+  savedCards.forEach(function(s){el.appendChild(createDeckCardEl(s));});
+}
+
+function removeDeckByUrl(url){
+  savedCards=savedCards.filter(function(s){return s.url!==url;});
+  likedUrls.delete(url);
   if(sb&&currentUser)sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',url).then(function(){});
-  document.querySelectorAll('.feed-card').forEach(function(div){
+  document.querySelectorAll('.feed-card[data-url]').forEach(function(div){
     if(div.dataset.url===url){var btn=div.querySelector('[data-action="like"]');if(btn)btn.className='like-btn';}
   });
   renderDeck();
@@ -2133,6 +2151,11 @@ document.getElementById('rosterContent').addEventListener('click',function(e){
   if(jItem){openRosterJournalist(jItem.dataset.name,jItem.dataset.pub);return;}
   var pItem=e.target.closest('.roster-item[data-pub-name]');
   if(pItem){openRosterPublication(pItem.dataset.pubName);}
+});
+
+document.getElementById('deckContent').addEventListener('click',function(e){
+  var btn=e.target.closest('[data-action="deck-remove"]');
+  if(btn){var card=btn.closest('.feed-card');if(card)removeDeckByUrl(card.dataset.url);}
 });
 
 // ─── Refresh timer ──────────────────────────────────────────────────────────────
