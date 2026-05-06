@@ -1,6 +1,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const Parser = require('rss-parser');
 const fs = require('fs');
+const https = require('https');
+const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
@@ -472,6 +474,50 @@ function extractImageUrl(item) {
   if (item.mediaContent && item.mediaContent.$ && item.mediaContent.$.url) return item.mediaContent.$.url;
   if (item.enclosure && item.enclosure.url && /^image/i.test(item.enclosure.type || '')) return item.enclosure.url;
   return null;
+}
+
+// Fetch the og:image from an article URL. Returns null on any failure or timeout.
+function fetchOgImage(articleUrl) {
+  return new Promise(function(resolve) {
+    const timeout = setTimeout(function() { resolve(null); }, 3000);
+    const done = function(val) { clearTimeout(timeout); resolve(val); };
+
+    try {
+      const mod = articleUrl.startsWith('https') ? https : http;
+      const req = mod.get(articleUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)',
+          'Accept': 'text/html',
+        },
+        timeout: 3000,
+      }, function(res) {
+        // Follow one redirect
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+          res.resume();
+          clearTimeout(timeout);
+          fetchOgImage(res.headers.location).then(resolve);
+          return;
+        }
+        if (res.statusCode !== 200) { res.resume(); return done(null); }
+        let html = '';
+        res.on('data', function(chunk) {
+          html += chunk;
+          // Stop reading once we have enough HTML to find the og:image tag
+          if (html.length > 50000) { req.destroy(); }
+        });
+        res.on('end', function() {
+          const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+                 || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+          done(m ? m[1] : null);
+        });
+        res.on('error', function() { done(null); });
+      });
+      req.on('error', function() { done(null); });
+      req.on('timeout', function() { req.destroy(); done(null); });
+    } catch(e) {
+      done(null);
+    }
+  });
 }
 
 async function fetchFeed(url) {
@@ -947,7 +993,12 @@ async function run() {
       return;
     }
 
-    const insight = await extractInsight(article, channelName);
+    // Fetch OG image in parallel with Sonnet insight extraction when RSS had none
+    const [insight, ogImage] = await Promise.all([
+      extractInsight(article, channelName),
+      article.imageUrl ? Promise.resolve(null) : fetchOgImage(article.url),
+    ]);
+    if (ogImage) article.imageUrl = ogImage;
 
     if (!isRelevantToChannel(insight, article.title, channelName)) {
       skipped.push({ channel: channelName, title: article.title });
