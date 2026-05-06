@@ -1,0 +1,32 @@
+name: Keep-alive
+
+# Runs daily at 3am UTC (11pm ET) — offset from pipeline runs (10am, 8pm UTC)
+# Touches a timestamp file and commits it so GitHub sees repo activity and
+# does not deprioritize the scheduled pipeline workflow.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update timestamp
+        run: |
+          mkdir -p .github
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/keepalive
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/keepalive
+          git diff --cached --quiet || git commit -m "chore: keepalive $(date -u +%Y-%m-%d)"
+          git push
