@@ -226,6 +226,51 @@ const channels = [
   },
 ];
 
+// ─── Filter prompts (Haiku — binary SKIP/CARD gate) ───────────────────────────
+// These run on every article. Output is exactly "SKIP" or "CARD" — nothing else.
+// Insight extraction only runs on articles that return CARD.
+
+const FILTER_PROMPT = `Does this article contain a specific, verifiable insight that would make someone say "I didn't know that"?
+
+To pass, the article must name a subject (person, company, product, place) AND contain at least one of: a stat, a dollar/percentage amount, a record or first, a named decision with consequence, a research finding with a measurement.
+
+General observations, trend pieces, opinion columns, and articles that only summarise what is already known fail.
+
+Respond with exactly CARD or SKIP. Nothing else.
+
+Article title: TITLE
+Article description: DESCRIPTION`;
+
+const DESIGN_FILTER_PROMPT = `Does this design article describe a specific formal, material, or conceptual decision tied to a named subject — an object, studio, designer, or project?
+
+To pass: name a specific subject AND describe a concrete design choice (a material, a joint, a production method, a dimension, a process decision). Trend pieces, roundups, and general observations about aesthetics fail.
+
+Respond with exactly CARD or SKIP. Nothing else.
+
+Article title: TITLE
+Article description: DESCRIPTION`;
+
+const ARCHITECTURE_FILTER_PROMPT = `Does this architecture article contain a specific, concrete insight about a named building, project, firm, or architect?
+
+To pass: must name a subject AND include at least one of: a structural or material decision, a scale or dimension, an award, a commission, a budget figure, a named opening. Vague descriptions of intent or aesthetic fail.
+
+Respond with exactly CARD or SKIP. Nothing else.
+
+Article title: TITLE
+Article description: DESCRIPTION`;
+
+const CULTURE_FILTER_PROMPT = `Does this arts and culture article contain a specific, concrete fact about a named artist, work, exhibition, or cultural figure?
+
+To pass: must name a subject AND include at least one of: a release date or opening, a box office or attendance figure, a casting or production decision, a prize, a record, a named collaboration. General commentary and trend pieces fail.
+
+Respond with exactly CARD or SKIP. Nothing else.
+
+Article title: TITLE
+Article description: DESCRIPTION`;
+
+// ─── Insight prompts (Sonnet — runs only on articles that pass the filter) ────
+// No SKIP branch needed here — the Haiku filter already gated the article.
+
 const INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed where every card must earn its place.
 
 Your job: extract the single most interesting insight from this article and express it in one sentence of 12 words or less.
@@ -254,12 +299,10 @@ PASS: "The new iPad Pro is now thinner than the iPod Nano — ending Apple's thi
 FAIL: "People who sleep under 6 hours make 70% more errors."
 PASS: "A Harvard study found sleep-deprived managers make 70% more errors — but almost none track it."
 
-If the article does not contain an insight that passes both filters, respond with exactly: SKIP
-
 Article title: TITLE
 Article description: DESCRIPTION
 
-Respond with only the one sentence insight, or SKIP. Nothing else.`;
+Respond with only the one sentence insight. Nothing else.`;
 
 const DESIGN_INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed where every card must earn its place.
 
@@ -286,12 +329,10 @@ PASS: "Muller Van Severen's new chair is one unbroken bend — no joint, no hard
 FAIL: "The building uses local materials."
 PASS: "Atelier Risco's shelter is rammed earth from the site — the building is literally made of the ground it stands on."
 
-If the article does not contain an insight that passes both filters, respond with exactly: SKIP
-
 Article title: TITLE
 Article description: DESCRIPTION
 
-Respond with only the one sentence insight, or SKIP. Nothing else.`;
+Respond with only the one sentence insight. Nothing else.`;
 
 const ARCHITECTURE_INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed for architecture and built-environment enthusiasts.
 
@@ -318,12 +359,10 @@ PASS: "Zaha Hadid Architects' Beijing stadium seats 68,000 and opens without a s
 FAIL: "A new pavilion explores the relationship between light and space." — no subject, no specificity
 FAIL: "The building uses sustainable materials to create a connection with its surroundings." — generic
 
-If the article does not contain an insight that passes both filters, respond with exactly: SKIP
-
 Article title: TITLE
 Article description: DESCRIPTION
 
-Respond with only the one sentence insight, or SKIP. Nothing else.`;
+Respond with only the one sentence insight. Nothing else.`;
 
 const CULTURE_INSIGHT_PROMPT = `You are the editorial engine for Binder, a news feed for arts and culture enthusiasts.
 
@@ -350,12 +389,10 @@ PASS: "Beyoncé's Renaissance film became the highest-grossing concert film ever
 FAIL: "A major new exhibition explores themes of identity and belonging." — no subject, no specificity
 FAIL: "The artist's latest work continues their exploration of memory and loss." — generic
 
-If the article does not contain an insight that passes both filters, respond with exactly: SKIP
-
 Article title: TITLE
 Article description: DESCRIPTION
 
-Respond with only the one sentence insight, or SKIP. Nothing else.`;
+Respond with only the one sentence insight. Nothing else.`;
 
 const BIO_PROMPT = `Introduce this journalist in 2-3 sentences, the way a trusted colleague would before a panel — warm, direct, and genuinely informative.
 
@@ -464,6 +501,23 @@ async function fetchFeed(url) {
   }
 }
 
+async function filterArticle(article, channel) {
+  let template;
+  if (channel === 'Design') template = DESIGN_FILTER_PROMPT;
+  else if (channel === 'Architecture') template = ARCHITECTURE_FILTER_PROMPT;
+  else if (channel === 'Arts & Culture') template = CULTURE_FILTER_PROMPT;
+  else template = FILTER_PROMPT;
+  const prompt = template
+    .replace('TITLE', article.title)
+    .replace('DESCRIPTION', article.description);
+  const message = await callClaude({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 10,
+    messages: [{ role: 'user', content: prompt }]
+  });
+  return message.content[0].text.trim().toUpperCase().startsWith('CARD');
+}
+
 async function extractInsight(article, channel) {
   let template;
   if (channel === 'Design') template = DESIGN_INSIGHT_PROMPT;
@@ -474,8 +528,8 @@ async function extractInsight(article, channel) {
     .replace('TITLE', article.title)
     .replace('DESCRIPTION', article.description);
   const message = await callClaude({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
+    model: 'claude-sonnet-4-6',
+    max_tokens: 120,
     messages: [{ role: 'user', content: prompt }]
   });
   return message.content[0].text.trim();
@@ -881,9 +935,9 @@ async function run() {
   // Phase 2: process articles in parallel with concurrency limit
   const tasks = queue.map(({ article, channelName }) => async () => {
     if (!outputByChannel[channelName]) outputByChannel[channelName] = [];
-    const insight = await extractInsight(article, channelName);
 
-    if (insight === 'SKIP') {
+    const passes = await filterArticle(article, channelName);
+    if (!passes) {
       skipped.push({ channel: channelName, title: article.title });
       console.log('  SKIP: ' + article.title.slice(0, 70));
       outputByChannel[channelName].push('SKIP: ' + article.title);
@@ -892,6 +946,8 @@ async function run() {
       }
       return;
     }
+
+    const insight = await extractInsight(article, channelName);
 
     if (!isRelevantToChannel(insight, article.title, channelName)) {
       skipped.push({ channel: channelName, title: article.title });
