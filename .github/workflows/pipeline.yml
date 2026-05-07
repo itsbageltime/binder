@@ -1,15 +1,12 @@
 name: Binder Pipeline
 
 on:
-  schedule:
-    - cron: '0 10 * * *'   # 6am ET (10am UTC)
-    - cron: '0 20 * * *'   # 4pm ET (8pm UTC)
-  workflow_dispatch:       # allows manual trigger from GitHub UI
+  workflow_dispatch:   # triggered by keep-alive at 6am ET; also runnable manually
 
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
 
     steps:
       - name: Checkout code
