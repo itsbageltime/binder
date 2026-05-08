@@ -202,6 +202,14 @@ const channels = [
     ]
   },
   {
+    name: 'Markets & Investing',
+    feeds: [
+      'https://seekingalpha.com/market-news/rss',
+      'https://feeds.finance.yahoo.com/rss/2.0/headline',
+      'https://feeds.wsj.com/xml/rss/3_7085.xml',
+    ]
+  },
+  {
     name: 'Politics & World',
     feeds: [
       'https://www.theguardian.com/world/rss',
@@ -232,11 +240,18 @@ const channels = [
 // These run on every article. Output is exactly "SKIP" or "CARD" — nothing else.
 // Insight extraction only runs on articles that return CARD.
 
-const FILTER_PROMPT = `Does this article contain a specific, verifiable insight that would make someone say "I didn't know that"?
+const FILTER_PROMPT = `Does this article contain a specific, verifiable insight that would make someone say "I didn't know that" or "that's surprising"?
 
-To pass, the article must name a subject (person, company, product, place) AND contain at least one of: a stat, a dollar/percentage amount, a record or first, a named decision with consequence, a research finding with a measurement.
+To pass, the article must name a subject AND contain at least one of: a concrete stat, a dollar/percentage amount, a record or first, a named decision with real consequence, a research finding with a measurement, a counterintuitive result.
 
-General observations, trend pieces, opinion columns, and articles that only summarise what is already known fail.
+AUTO-REJECT any of these — respond SKIP immediately:
+- Market size projections ("the X market will reach $Y by 20ZZ") with no broader context or surprising finding
+- Earnings announcements with no surprising result — only pass if the result was unexpected or counterintuitive
+- Press releases that are purely announcements: product launches with no specs, partnerships with no detail, funding rounds with no context
+- Executive appointments ("X appoints new CEO/CFO/VP") unless there is a specific reason why this person or this move is newsworthy
+- General trend pieces, opinion columns, and articles that only summarise what is already known
+
+Every CARD should make a reader stop and say "I didn't know that."
 
 Respond with exactly CARD or SKIP. Nothing else.
 
@@ -245,7 +260,9 @@ Article description: DESCRIPTION`;
 
 const DESIGN_FILTER_PROMPT = `Does this design article describe a specific formal, material, or conceptual decision tied to a named subject — an object, studio, designer, or project?
 
-To pass: name a specific subject AND describe a concrete design choice (a material, a joint, a production method, a dimension, a process decision). Trend pieces, roundups, and general observations about aesthetics fail.
+To pass: name a specific subject AND describe a concrete design choice (a material, a joint, a production method, a dimension, a process decision).
+
+AUTO-REJECT: trend roundups, "best of" lists, general aesthetic commentary, press releases announcing a product with no concrete specs, award announcements with no specific notable reason.
 
 Respond with exactly CARD or SKIP. Nothing else.
 
@@ -254,7 +271,9 @@ Article description: DESCRIPTION`;
 
 const ARCHITECTURE_FILTER_PROMPT = `Does this architecture article contain a specific, concrete insight about a named building, project, firm, or architect?
 
-To pass: must name a subject AND include at least one of: a structural or material decision, a scale or dimension, an award, a commission, a budget figure, a named opening. Vague descriptions of intent or aesthetic fail.
+To pass: must name a subject AND include at least one of: a structural or material decision, a scale or dimension, an award with a specific reason, a commission, a budget figure, a named opening.
+
+AUTO-REJECT: vague descriptions of intent or aesthetic, press releases with no concrete detail, appointment announcements unless there is a specific reason this hire is significant.
 
 Respond with exactly CARD or SKIP. Nothing else.
 
@@ -263,7 +282,9 @@ Article description: DESCRIPTION`;
 
 const CULTURE_FILTER_PROMPT = `Does this arts and culture article contain a specific, concrete fact about a named artist, work, exhibition, or cultural figure?
 
-To pass: must name a subject AND include at least one of: a release date or opening, a box office or attendance figure, a casting or production decision, a prize, a record, a named collaboration. General commentary and trend pieces fail.
+To pass: must name a subject AND include at least one of: a release date or opening, a box office or attendance figure, a casting or production decision, a prize, a record, a named collaboration.
+
+AUTO-REJECT: general trend commentary, award announcements with no surprising or notable detail, profiles with no concrete new information, press releases that only announce without revealing anything specific.
 
 Respond with exactly CARD or SKIP. Nothing else.
 
@@ -477,43 +498,65 @@ function extractImageUrl(item) {
 }
 
 // Fetch the og:image from an article URL. Returns null on any failure or timeout.
-function fetchOgImage(articleUrl) {
+const ogStats = { attempted: 0, succeeded: 0, failed: 0, timedOut: 0 };
+
+function fetchOgImage(articleUrl, redirectsLeft = 3) {
+  ogStats.attempted++;
   return new Promise(function(resolve) {
-    const timeout = setTimeout(function() { resolve(null); }, 3000);
-    const done = function(val) { clearTimeout(timeout); resolve(val); };
+    let timedOut = false;
+    const timeout = setTimeout(function() {
+      timedOut = true;
+      console.log('[OG] timeout: ' + articleUrl);
+      ogStats.timedOut++;
+      ogStats.failed++;
+      resolve(null);
+    }, 5000);
+    const done = function(val) {
+      if (timedOut) return;
+      clearTimeout(timeout);
+      if (val) {
+        console.log('[OG] success: ' + articleUrl);
+        ogStats.succeeded++;
+      } else {
+        ogStats.failed++;
+      }
+      resolve(val);
+    };
 
     try {
       const mod = articleUrl.startsWith('https') ? https : http;
       const req = mod.get(articleUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)',
-          'Accept': 'text/html',
-        },
-        timeout: 3000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)', 'Accept': 'text/html' },
+        timeout: 5000,
       }, function(res) {
-        // Follow one redirect
-        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirectsLeft > 0) {
           res.resume();
           clearTimeout(timeout);
-          fetchOgImage(res.headers.location).then(resolve);
+          ogStats.attempted--; // don't double-count the redirect
+          fetchOgImage(res.headers.location, redirectsLeft - 1).then(resolve);
           return;
         }
-        if (res.statusCode !== 200) { res.resume(); return done(null); }
+        if (res.statusCode !== 200) {
+          res.resume();
+          console.log('[OG] failed (' + res.statusCode + '): ' + articleUrl);
+          return done(null);
+        }
         let html = '';
+        req.on('error', function() {});
         res.on('data', function(chunk) {
           html += chunk;
-          // Stop reading once we have enough HTML to find the og:image tag
           if (html.length > 50000) { req.destroy(); }
         });
         res.on('end', function() {
           const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
                  || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+          if (!m) console.log('[OG] failed (no tag): ' + articleUrl);
           done(m ? m[1] : null);
         });
         res.on('error', function() { done(null); });
       });
       req.on('error', function() { done(null); });
-      req.on('timeout', function() { req.destroy(); done(null); });
+      req.on('timeout', function() { req.destroy(); });
     } catch(e) {
       done(null);
     }
@@ -636,6 +679,28 @@ async function getPublicationBio(name) {
   }
 }
 
+function jaccardSimilarity(a, b) {
+  const wordsOf = s => new Set(s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean));
+  const A = wordsOf(a), B = wordsOf(b);
+  let intersection = 0;
+  A.forEach(w => { if (B.has(w)) intersection++; });
+  const union = A.size + B.size - intersection;
+  return union === 0 ? 1 : intersection / union;
+}
+
+function deduplicateByInsight(cards, threshold) {
+  const kept = [];
+  for (const card of cards) {
+    const duplicate = kept.find(k => jaccardSimilarity(card.insight, k.insight) >= threshold);
+    if (duplicate) {
+      console.log('  DEDUP removed (similar to kept card): ' + card.insight.slice(0, 70));
+    } else {
+      kept.push(card);
+    }
+  }
+  return kept;
+}
+
 function scoreInsight(insight) {
   let score = 0;
   if (/\d/.test(insight)) score++;
@@ -724,6 +789,7 @@ const CHANNEL_NEWSAPI_QUERIES = {
   'Film':                'film cinema movie',
   'Fashion':             'fashion design style',
   'Politics & World':    'politics world news',
+  'Markets & Investing': 'market growth investing finance stocks sectors',
 };
 
 // ─── Custom channel query expansion ──────────────────────────────────────────
@@ -973,7 +1039,7 @@ async function run() {
     return bioPending.get(key);
   }
 
-  const cards = [];
+  let cards = [];
   const archiveCards = [];
   const skipped = [];
   const outputByChannel = {};
@@ -1020,6 +1086,7 @@ async function run() {
   await withConcurrency(10, tasks);
   await markUrlsSeen(queue.map(({ article, channelName }) => article.url + '|' + channelName));
   console.log('Marked ' + queue.length + ' URLs as seen.');
+  console.log('[OG] stats — attempted: ' + ogStats.attempted + ', succeeded: ' + ogStats.succeeded + ', failed: ' + ogStats.failed + ', timed out: ' + ogStats.timedOut);
 
   // Build review output grouped by channel order
   const output = [];
@@ -1033,6 +1100,9 @@ async function run() {
   }
 
   cards.sort((a, b) => b.score - a.score);
+  const beforeDedup = cards.length;
+  cards = deduplicateByInsight(cards, 0.8);
+  console.log('Dedup: removed ' + (beforeDedup - cards.length) + ' duplicate insights (' + beforeDedup + ' → ' + cards.length + ')');
   fs.writeFileSync('cards.json', JSON.stringify(cards, null, 2));
 
   if (supabase) {
