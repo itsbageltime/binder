@@ -548,7 +548,8 @@ var CHANNEL_DEFS=[
   {name:'Arts & Culture',desc:'Art, music, film, and creative life'},
   {name:'Film',desc:'Cinema, the industry, and screen culture'},
   {name:'Fashion',desc:'Style, the industry, and what we wear'},
-  {name:'Politics & World',desc:'Power, policy, and global affairs'}
+  {name:'Politics & World',desc:'Power, policy, and global affairs'},
+  {name:'Markets & Investing',desc:'Market trends, sector growth, and investment signals.'}
 ];
 
 var selectedChannelTiles=new Set();
@@ -630,7 +631,29 @@ function buildImgTag(c,cls){
   if(c.imageUrl){
     return '<img class="'+cls+'" src="'+escHtml(c.imageUrl)+'" onerror="this.src=\''+placeholder+'\'" alt="" loading="lazy">';
   }
-  return '<img class="'+cls+'" src="'+placeholder+'" alt="">';
+  return '<img class="'+cls+'" src="'+placeholder+'" alt="" data-fetch-url="'+escHtml(c.url)+'">';
+}
+
+var microlinkCache={};
+function fetchMicrolinkImage(imgEl){
+  var url=imgEl.getAttribute('data-fetch-url');
+  if(!url)return;
+  imgEl.removeAttribute('data-fetch-url');
+  if(microlinkCache[url]===null)return;
+  if(microlinkCache[url]){imgEl.src=microlinkCache[url];return;}
+  var placeholder=imgEl.src;
+  fetch('https://api.microlink.io?url='+encodeURIComponent(url))
+    .then(function(r){return r.json();})
+    .then(function(data){
+      var imgUrl=data&&data.data&&data.data.image&&data.data.image.url;
+      microlinkCache[url]=imgUrl||null;
+      if(!imgUrl)return;
+      var t=new Image();
+      t.onload=function(){imgEl.src=imgUrl;};
+      t.onerror=function(){microlinkCache[url]=null;};
+      t.src=imgUrl;
+    })
+    .catch(function(){microlinkCache[url]=null;});
 }
 
 // ─── Auth ───────────────────────────────────────────────────────────────────────
@@ -1317,6 +1340,7 @@ function createHeroCard(c){
       '</div>'+
     '</div>'+
     buildExpandedHtml(c);
+  var fi=div.querySelector('img[data-fetch-url]');if(fi)fetchMicrolinkImage(fi);
   attachCardHandlers(div,c);
   return div;
 }
@@ -1337,6 +1361,7 @@ function createPairCard(c){
       '</div>'+
     '</div>'+
     buildExpandedHtml(c);
+  var fi=div.querySelector('img[data-fetch-url]');if(fi)fetchMicrolinkImage(fi);
   attachCardHandlers(div,c);
   return div;
 }
@@ -1357,6 +1382,7 @@ function createRowCard(c){
     '</div>'+
     '<div class="row-img-wrap">'+buildImgTag(c,'')+'</div>'+
     buildExpandedHtml(c);
+  var fi=div.querySelector('img[data-fetch-url]');if(fi)fetchMicrolinkImage(fi);
   attachCardHandlers(div,c);
   return div;
 }
@@ -1677,6 +1703,7 @@ function createDeckCardEl(s){
       '</div>'+
     '</div>'+
     '<div class="row-img-wrap">'+buildImgTag(c,'')+'</div>';
+  var fi=div.querySelector('img[data-fetch-url]');if(fi)fetchMicrolinkImage(fi);
   return div;
 }
 

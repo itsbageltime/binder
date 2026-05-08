@@ -1,8 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const Parser = require('rss-parser');
 const fs = require('fs');
-const https = require('https');
-const http = require('http');
 const { createClient } = require('@supabase/supabase-js');
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_KEY;
@@ -497,71 +495,6 @@ function extractImageUrl(item) {
   return null;
 }
 
-// Fetch the og:image from an article URL. Returns null on any failure or timeout.
-const ogStats = { attempted: 0, succeeded: 0, failed: 0, timedOut: 0 };
-
-function fetchOgImage(articleUrl, redirectsLeft = 3) {
-  ogStats.attempted++;
-  return new Promise(function(resolve) {
-    let timedOut = false;
-    const timeout = setTimeout(function() {
-      timedOut = true;
-      console.log('[OG] timeout: ' + articleUrl);
-      ogStats.timedOut++;
-      ogStats.failed++;
-      resolve(null);
-    }, 5000);
-    const done = function(val) {
-      if (timedOut) return;
-      clearTimeout(timeout);
-      if (val) {
-        console.log('[OG] success: ' + articleUrl);
-        ogStats.succeeded++;
-      } else {
-        ogStats.failed++;
-      }
-      resolve(val);
-    };
-
-    try {
-      const mod = articleUrl.startsWith('https') ? https : http;
-      const req = mod.get(articleUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)', 'Accept': 'text/html' },
-        timeout: 5000,
-      }, function(res) {
-        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && redirectsLeft > 0) {
-          res.resume();
-          clearTimeout(timeout);
-          ogStats.attempted--; // don't double-count the redirect
-          fetchOgImage(res.headers.location, redirectsLeft - 1).then(resolve);
-          return;
-        }
-        if (res.statusCode !== 200) {
-          res.resume();
-          console.log('[OG] failed (' + res.statusCode + '): ' + articleUrl);
-          return done(null);
-        }
-        let html = '';
-        req.on('error', function() {});
-        res.on('data', function(chunk) {
-          html += chunk;
-          if (html.length > 50000) { req.destroy(); }
-        });
-        res.on('end', function() {
-          const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-                 || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-          if (!m) console.log('[OG] failed (no tag): ' + articleUrl);
-          done(m ? m[1] : null);
-        });
-        res.on('error', function() { done(null); });
-      });
-      req.on('error', function() { done(null); });
-      req.on('timeout', function() { req.destroy(); });
-    } catch(e) {
-      done(null);
-    }
-  });
-}
 
 async function fetchFeed(url) {
   const parser = new Parser({
@@ -1059,12 +992,7 @@ async function run() {
       return;
     }
 
-    // Fetch OG image in parallel with Sonnet insight extraction when RSS had none
-    const [insight, ogImage] = await Promise.all([
-      extractInsight(article, channelName),
-      article.imageUrl ? Promise.resolve(null) : fetchOgImage(article.url),
-    ]);
-    if (ogImage) article.imageUrl = ogImage;
+    const insight = await extractInsight(article, channelName);
 
     if (!isRelevantToChannel(insight, article.title, channelName)) {
       skipped.push({ channel: channelName, title: article.title });
@@ -1086,7 +1014,6 @@ async function run() {
   await withConcurrency(10, tasks);
   await markUrlsSeen(queue.map(({ article, channelName }) => article.url + '|' + channelName));
   console.log('Marked ' + queue.length + ' URLs as seen.');
-  console.log('[OG] stats — attempted: ' + ogStats.attempted + ', succeeded: ' + ogStats.succeeded + ', failed: ' + ogStats.failed + ', timed out: ' + ogStats.timedOut);
 
   // Build review output grouped by channel order
   const output = [];
