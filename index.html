@@ -220,6 +220,23 @@ header .date { font-size: 12px; color: var(--muted); }
 .voices-section-header:first-child { margin-top: 0; }
 .journalist-panel { position: absolute; inset: 0; background: var(--panel-bg); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 10; overflow-y: auto; }
 .journalist-panel.open { transform: translateY(0); }
+.ch-tune { font-size: 9px; opacity: 0.35; margin-left: 3px; vertical-align: middle; cursor: pointer; pointer-events: all; }
+.channel-btn.active .ch-tune { opacity: 0.65; }
+.algo-summary { background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 14px; padding: 16px 18px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; font-family: 'Inter', sans-serif; }
+.algo-section { margin-bottom: 28px; }
+.algo-label { font-size: 15px; font-weight: 600; color: var(--body-text); margin-bottom: 4px; font-family: 'Inter', sans-serif; }
+.algo-sublabel { font-size: 12px; color: var(--muted); margin-bottom: 14px; font-family: 'Inter', sans-serif; }
+.algo-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 10px; }
+.algo-pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px; padding: 6px 10px 6px 14px; font-size: 13px; font-family: 'Inter', sans-serif; }
+.algo-pill.boost { border: 1px solid #2d5a2d; background: #1a2e1a; color: #4CAF50; }
+.algo-pill.block { border: 1px solid #5a2d2d; background: #2e1a1a; color: #e05050; }
+.algo-pill-x { background: none; border: none; color: inherit; opacity: 0.7; cursor: pointer; font-size: 16px; padding: 0 2px; line-height: 1; }
+.algo-add-row { display: flex; gap: 8px; }
+.algo-input { flex: 1; background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--body-text); font-family: 'Inter', sans-serif; outline: none; min-width: 0; }
+.algo-input::placeholder { color: var(--muted); }
+.algo-add-btn { background: var(--tab-active-bg); color: var(--tab-active-text); border: none; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: 'Inter', sans-serif; flex-shrink: 0; }
+body.light .algo-pill.boost { border-color: #4CAF50; background: #e8f5e9; }
+body.light .algo-pill.block { border-color: #e05050; background: #fce8e8; }
 .panel-inner { max-width: 560px; margin: 0 auto; padding: 24px 20px; }
 .panel-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
 .panel-back { background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 10px; padding: 8px 14px; font-size: 13px; color: var(--muted); cursor: pointer; font-family: 'Inter', sans-serif; }
@@ -436,6 +453,34 @@ header .date { font-size: 12px; color: var(--muted); }
     </div>
   </div>
 
+  <div class="journalist-panel" id="algoPanel">
+    <div class="panel-inner">
+      <div class="panel-header">
+        <button class="panel-back" onclick="closeAlgoPanel()">← Back</button>
+        <div id="algoPanelTitle" style="font-size:15px;font-weight:600;color:var(--body-text);font-family:'Inter',sans-serif;"></div>
+      </div>
+      <div id="algoSummary" class="algo-summary"></div>
+      <div class="algo-section">
+        <div class="algo-label">What you want to see more of</div>
+        <div class="algo-sublabel">Topics within your <span id="algoBoostChanLabel"></span> feed</div>
+        <div id="algoBoostPills" class="algo-pills"></div>
+        <div class="algo-add-row">
+          <input class="algo-input" id="algoBoostInput" type="text" placeholder='e.g. "AI research"' onkeydown="if(event.key==='Enter')submitBoostTopic()">
+          <button class="algo-add-btn" onclick="submitBoostTopic()">+ Add</button>
+        </div>
+      </div>
+      <div class="algo-section">
+        <div class="algo-label">What you want to see less of</div>
+        <div class="algo-sublabel">Topics within your <span id="algoBlockChanLabel"></span> feed</div>
+        <div id="algoBlockPills" class="algo-pills"></div>
+        <div class="algo-add-row">
+          <input class="algo-input" id="algoBlockInput" type="text" placeholder='e.g. "crypto"' onkeydown="if(event.key==='Enter')submitBlockTopic()">
+          <button class="algo-add-btn" onclick="submitBlockTopic()">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings: Rearrange feeds -->
   <div class="settings-panel" id="screenRearrange">
     <div class="settings-panel-header">
@@ -525,6 +570,7 @@ var pubPanelRelated=[],pubPanelSort='date';
 var userSignalData={clickedSources:new Set(),dwelledSources:new Set(),likedChannels:new Map(),scrolledPastSources:new Map()};
 var signalCount=0;
 var signalBuffer=[];
+var channelBoosts={},channelBlocks={},currentAlgoChannel='';
 var expandStartTime={};
 var sessionData={cards_seen:0,cards_completed:0,expands:0,article_clicks:0,likes:0};
 var seenCardUrls=new Set();
@@ -812,7 +858,7 @@ async function startApp(){
   document.getElementById('settingsEmail').textContent=email;
   if(userProfile&&userProfile.theme)applyTheme(userProfile.theme);
   updateGreeting();
-  await Promise.all([loadFollows(),loadUserSignals()]);
+  await Promise.all([loadFollows(),loadUserSignals(),loadChannelFilters()]);
   await loadCards();
   await loadUserLikes();
   checkSurveyAnswered();
@@ -1162,8 +1208,20 @@ function buildChannels(){
   var userChans=getUserChannels();
   var combined=['all'].concat(userChans);
   document.getElementById('channels').innerHTML=combined.map(function(t){
-    return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" data-channel="'+escHtml(t)+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+(t==='all'?'All':escHtml(t))+'</button>';
+    var isAll=t==='all';
+    return '<button class="channel-btn'+(t===activeChannel?' active':'')+'" data-channel="'+escHtml(t)+'" onclick="switchChannel(\''+escHtml(t)+'\',this)">'+
+      (isAll?'All':escHtml(t))+
+      (!isAll?' <span class="ch-tune" onclick="event.stopPropagation();openAlgoPanel(\''+escHtml(t)+'\')">⚙</span>':'')+
+    '</button>';
   }).join('');
+  document.querySelectorAll('.channel-btn[data-channel]').forEach(function(btn){
+    if(btn.dataset.channel==='all')return;
+    var timer;
+    btn.addEventListener('touchstart',function(){timer=setTimeout(function(){openAlgoPanel(btn.dataset.channel);},500);},{passive:true});
+    btn.addEventListener('touchend',function(){clearTimeout(timer);},{passive:true});
+    btn.addEventListener('touchmove',function(){clearTimeout(timer);},{passive:true});
+    btn.addEventListener('contextmenu',function(e){e.preventDefault();openAlgoPanel(btn.dataset.channel);});
+  });
 }
 
 function getChannelList(){
@@ -1188,6 +1246,9 @@ function personalScore(c){
   score+=(userSignalData.dwelledSources.has(c.source)?2:0);
   score+=((userSignalData.likedChannels.get(c.channel)||0)>0?1:0);
   score+=((userSignalData.scrolledPastSources.get(c.source)||0)>=3?-1:0);
+  var insight=(c.insight||'').toLowerCase();
+  (channelBoosts[c.channel]||[]).forEach(function(t){if(insight.indexOf(t.toLowerCase())!==-1)score+=2;});
+  (channelBlocks[c.channel]||[]).forEach(function(t){if(insight.indexOf(t.toLowerCase())!==-1)score-=2;});
   return score;
 }
 
@@ -1667,6 +1728,138 @@ function sortPubPanelArticles(sort,btn){
   btn.classList.add('active');renderPubPanelArticles();
 }
 function closePublication(){document.getElementById('publicationPanel').classList.remove('open');}
+
+// ─── Channel algorithm panel ────────────────────────────────────────────────────
+async function loadChannelFilters(){
+  if(!sb||!currentUser)return;
+  try{
+    var results=await Promise.all([
+      sb.from('channel_boosts').select('channel,topic').eq('user_id',currentUser.id),
+      sb.from('channel_blocks').select('channel,topic').eq('user_id',currentUser.id),
+    ]);
+    channelBoosts={};channelBlocks={};
+    if(!results[0].error&&results[0].data)results[0].data.forEach(function(r){
+      if(!channelBoosts[r.channel])channelBoosts[r.channel]=[];
+      if(channelBoosts[r.channel].indexOf(r.topic)===-1)channelBoosts[r.channel].push(r.topic);
+    });
+    if(!results[1].error&&results[1].data)results[1].data.forEach(function(r){
+      if(!channelBlocks[r.channel])channelBlocks[r.channel]=[];
+      if(channelBlocks[r.channel].indexOf(r.topic)===-1)channelBlocks[r.channel].push(r.topic);
+    });
+  }catch(e){console.error('loadChannelFilters:',e);}
+}
+
+function generateChannelSummary(channel){
+  var channelCards=allCards.filter(function(c){return c.channel===channel&&!!c.insight;});
+  var liked=channelCards.filter(function(c){return likedUrls.has(c.url);});
+  var clickedSrcs=[],dwelledSrcs=[];
+  channelCards.forEach(function(c){
+    if(userSignalData.clickedSources.has(c.source)&&clickedSrcs.indexOf(c.source)===-1)clickedSrcs.push(c.source);
+    if(userSignalData.dwelledSources.has(c.source)&&dwelledSrcs.indexOf(c.source)===-1)dwelledSrcs.push(c.source);
+  });
+  var totalEvents=liked.length*3+clickedSrcs.length+dwelledSrcs.length;
+  if(totalEvents<5)return null;
+  var parts=[];
+  var topSrcs=clickedSrcs.concat(dwelledSrcs.filter(function(s){return clickedSrcs.indexOf(s)===-1;})).slice(0,2);
+  if(topSrcs.length)parts.push('sources like '+topSrcs.join(' and '));
+  if(liked.length){
+    var stop=new Set(['that','this','their','they','with','have','from','which','been','were','will','more','than','also','into','after','over','about','when','some','what','both','each','first','record','despite','while']);
+    var freq={};
+    liked.forEach(function(c){
+      (c.insight||'').toLowerCase().replace(/[^a-z\s]/g,' ').split(/\s+/).forEach(function(w){
+        if(w.length>4&&!stop.has(w))freq[w]=(freq[w]||0)+1;
+      });
+    });
+    var topWords=Object.entries(freq).sort(function(a,b){return b[1]-a[1];}).slice(0,3).map(function(e){return e[0];});
+    if(topWords.length)parts.push('stories touching on '+topWords.join(', '));
+  }
+  if(!parts.length)return null;
+  return 'Based on your reading history, you gravitate toward '+parts.join(', ')+'.';
+}
+
+function renderAlgoPillSet(containerId,topics,cls,removeFnName){
+  var el=document.getElementById(containerId);
+  if(!topics||!topics.length){el.innerHTML='';return;}
+  var ch=escHtml(currentAlgoChannel);
+  el.innerHTML=topics.map(function(t){
+    return '<span class="algo-pill '+cls+'">'+escHtml(t)+
+      '<button class="algo-pill-x" onclick="'+removeFnName+'(\''+ch+'\',\''+escHtml(t)+'\')">×</button></span>';
+  }).join('');
+}
+
+function renderAlgoPanel(){
+  var ch=currentAlgoChannel;
+  document.getElementById('algoPanelTitle').textContent='Your '+ch+' feed';
+  document.getElementById('algoBoostChanLabel').textContent=ch.toLowerCase();
+  document.getElementById('algoBlockChanLabel').textContent=ch.toLowerCase();
+  var summary=generateChannelSummary(ch);
+  var summaryEl=document.getElementById('algoSummary');
+  summaryEl.textContent=summary||'Keep reading — your taste profile is building.';
+  summaryEl.style.color=summary?'var(--body-text)':'var(--muted)';
+  summaryEl.style.fontStyle=summary?'normal':'italic';
+  renderAlgoPillSet('algoBoostPills',channelBoosts[ch]||[],'boost','removeBoostTopic');
+  renderAlgoPillSet('algoBlockPills',channelBlocks[ch]||[],'block','removeBlockTopic');
+}
+
+function openAlgoPanel(channel){
+  currentAlgoChannel=channel;
+  document.getElementById('algoBoostInput').value='';
+  document.getElementById('algoBlockInput').value='';
+  renderAlgoPanel();
+  document.getElementById('algoPanel').classList.add('open');
+}
+
+function closeAlgoPanel(){document.getElementById('algoPanel').classList.remove('open');}
+
+function submitBoostTopic(){
+  var input=document.getElementById('algoBoostInput');
+  var topic=input.value.trim();
+  if(!topic)return;
+  input.value='';
+  addBoostTopic(currentAlgoChannel,topic);
+}
+
+function submitBlockTopic(){
+  var input=document.getElementById('algoBlockInput');
+  var topic=input.value.trim();
+  if(!topic)return;
+  input.value='';
+  addBlockTopic(currentAlgoChannel,topic);
+}
+
+function addBoostTopic(channel,topic){
+  if(!channelBoosts[channel])channelBoosts[channel]=[];
+  if(channelBoosts[channel].indexOf(topic)!==-1)return;
+  channelBoosts[channel].push(topic);
+  if(sb&&currentUser)sb.from('channel_boosts').upsert({user_id:currentUser.id,channel:channel,topic:topic},{onConflict:'user_id,channel,topic'}).then(function(){});
+  renderAlgoPillSet('algoBoostPills',channelBoosts[channel],'boost','removeBoostTopic');
+  renderFeed();
+}
+
+function removeBoostTopic(channel,topic){
+  if(!channelBoosts[channel])return;
+  channelBoosts[channel]=channelBoosts[channel].filter(function(t){return t!==topic;});
+  if(sb&&currentUser)sb.from('channel_boosts').delete().eq('user_id',currentUser.id).eq('channel',channel).eq('topic',topic).then(function(){});
+  renderAlgoPillSet('algoBoostPills',channelBoosts[channel],'boost','removeBoostTopic');
+  renderFeed();
+}
+
+function addBlockTopic(channel,topic){
+  if(!channelBlocks[channel])channelBlocks[channel]=[];
+  if(channelBlocks[channel].indexOf(topic)!==-1)return;
+  channelBlocks[channel].push(topic);
+  if(sb&&currentUser)sb.from('channel_blocks').upsert({user_id:currentUser.id,channel:channel,topic:topic},{onConflict:'user_id,channel,topic'}).then(function(){});
+  renderAlgoPillSet('algoBlockPills',channelBlocks[channel],'block','removeBlockTopic');
+  renderFeed();
+}
+
+function removeBlockTopic(channel,topic){
+  if(!channelBlocks[channel])return;
+  channelBlocks[channel]=channelBlocks[channel].filter(function(t){return t!==topic;});
+  if(sb&&currentUser)sb.from('channel_blocks').delete().eq('user_id',currentUser.id).eq('channel',channel).eq('topic',topic).then(function(){});
+  renderAlgoPillSet('algoBlockPills',channelBlocks[channel],'block','removeBlockTopic');
+  renderFeed();
+}
 
 // ─── Follow / unfollow ──────────────────────────────────────────────────────────
 function toggleFollow(){
