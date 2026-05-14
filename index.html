@@ -980,31 +980,41 @@ async function loadUserSignals(){
 async function loadUserLikes(){
   if(!sb||!currentUser)return;
   try{
-    // Step 1: fetch liked URLs
-    var likesRes=await sb.from('user_likes').select('card_url').eq('user_id',currentUser.id);
+    // Step 1: fetch liked rows ordered most-recently-liked first
+    var likesRes=await sb.from('user_likes').select('card_url,created_at').eq('user_id',currentUser.id).order('created_at',{ascending:false});
     if(likesRes.error||!likesRes.data||likesRes.data.length===0)return;
-    var urls=likesRes.data.map(function(r){return r.card_url;});
+    var likeRows=likesRes.data;
+    var urls=likeRows.map(function(r){return r.card_url;});
     urls.forEach(function(u){likedUrls.add(u);});
 
-    // Step 2: fetch full card rows from Supabase for all liked URLs.
-    // allCards only covers the last 7 days, so liked cards older than that
-    // must be fetched directly. Order by score desc so dedup keeps best version.
+    // Step 2: fetch full card rows for all liked URLs (unbounded — covers all time)
     var cardsRes=await sb.from('cards').select('*').in('url',urls).order('score',{ascending:false});
+    // Build url→row map, keeping highest-scored row when a URL appears in multiple channels
+    var cardsByUrl={};
     if(!cardsRes.error&&cardsRes.data){
-      var seen=new Set();
-      // Walk in liked-URL order so savedCards reflects recency
-      urls.forEach(function(url){
-        if(seen.has(url))return;
-        var row=cardsRes.data.find(function(r){return r.url===url;});
-        if(!row)return;
-        seen.add(url);
-        if(!savedCards.find(function(s){return s.url===url;})){
-          savedCards.push({url:url,card:normalizeCard(row)});
-        }
+      cardsRes.data.forEach(function(row){
+        if(!cardsByUrl[row.url]||row.score>cardsByUrl[row.url].score)cardsByUrl[row.url]=row;
       });
     }
 
-    // Step 3: reflect liked state on any cards already rendered in the feed
+    // Step 3: build savedCards in liked order (most recent first).
+    // For URLs no longer in the cards table, insert a stub so the card is
+    // still visible in the Deck with a note that it left the feed.
+    likeRows.forEach(function(likeRow){
+      var url=likeRow.card_url;
+      if(savedCards.find(function(s){return s.url===url;}))return;
+      var card;
+      if(cardsByUrl[url]){
+        card=normalizeCard(cardsByUrl[url]);
+      }else{
+        var host='';
+        try{host=new URL(url).hostname.replace(/^www\./,'');}catch(e){host=url.slice(0,50);}
+        card={url:url,channel:'',insight:'',context:'',score:0,title:'',source:host,author:'',authorBio:'',pubDate:'',imageUrl:'',_stub:true};
+      }
+      savedCards.push({url:url,card:card});
+    });
+
+    // Step 4: reflect liked state on any cards already rendered in the feed
     document.querySelectorAll('.feed-card').forEach(function(div){
       var btn=div.querySelector('[data-action="like"]');
       if(btn)btn.className='like-btn'+(likedUrls.has(div.dataset.url)?' liked':'');
@@ -1709,6 +1719,18 @@ function createDeckCardEl(s){
   var div=document.createElement('div');
   div.className='feed-card row';
   div.dataset.url=c.url;
+  if(c._stub){
+    div.innerHTML=
+      '<div class="row-body" style="opacity:0.55">'+
+        '<div class="row-channel" style="font-style:italic">No longer in feed</div>'+
+        '<div class="row-insight" style="color:var(--muted);font-size:13px">'+escHtml(c.source)+'</div>'+
+        '<div class="row-meta">'+
+          '<a href="'+escHtml(c.url)+'" target="_blank" style="font-size:12px;color:#4a9eff;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">Open article →</a>'+
+          '<button class="deck-remove" data-action="deck-remove">×</button>'+
+        '</div>'+
+      '</div>';
+    return div;
+  }
   div.innerHTML=
     '<div class="row-body">'+
       '<div class="row-channel">'+escHtml(c.channel)+'</div>'+
