@@ -324,6 +324,7 @@ body.light .algo-pill.block { border-color: #e05050; background: #fce8e8; }
 .feed-pill.selected { background: #2C2C2A; border-color: #4CAF50; color: #bbb; }
 body.light .feed-pill.selected { background: #2C2C2A; border-color: #4CAF50; color: #bbb; }
 .feed-pill-edit { background: none; border: none; color: inherit; opacity: 0.6; cursor: pointer; font-size: 11px; padding: 0 0 0 2px; line-height: 1; flex-shrink: 0; }
+.feed-pill-dots { background: none; border: none; color: inherit; opacity: 0.45; cursor: pointer; font-size: 11px; letter-spacing: -1px; padding: 0 0 0 5px; line-height: 1; flex-shrink: 0; }
 .feed-pill-edit-input { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; outline: none; padding: 0; min-width: 40px; max-width: 150px; -webkit-appearance: none; }
 #menuChSaveBtn { width: auto; padding: 10px 24px; font-size: 14px; font-weight: 500; display: block; margin: 0 auto; }
 </style>
@@ -2182,17 +2183,7 @@ function initMenuEditChannels(){
   if(addBtn)addBtn.classList.remove('ready');
 
   CHANNEL_DEFS.forEach(function(ch){
-    var sel=menuChSelected.has(ch.name);
-    var pill=document.createElement('span');
-    pill.className='feed-pill'+(sel?' selected':'');
-    pill.dataset.channel=ch.name;
-    pill.textContent=ch.name;
-    pill.addEventListener('click',function(){
-      if(menuChSelected.has(ch.name)){menuChSelected.delete(ch.name);pill.classList.remove('selected');}
-      else{menuChSelected.add(ch.name);pill.classList.add('selected');}
-      updateMenuChCount();
-    });
-    grid.appendChild(pill);
+    grid.appendChild(buildStdPill(ch.name));
   });
 
   menuCustomEdits.forEach(function(e,i){
@@ -2200,6 +2191,43 @@ function initMenuEditChannels(){
   });
 
   updateMenuChCount();
+}
+
+function makePillDots(channelName){
+  var btn=document.createElement('button');
+  btn.className='feed-pill-dots';
+  btn.textContent='···';
+  btn.setAttribute('aria-label','Tune feed');
+  btn.addEventListener('click',function(ev){ev.stopPropagation();openAlgoPanel(channelName);});
+  return btn;
+}
+
+function buildStdPill(name){
+  var sel=menuChSelected.has(name);
+  var pill=document.createElement('span');
+  pill.className='feed-pill'+(sel?' selected':'');
+  pill.dataset.channel=name;
+
+  var nameSpan=document.createElement('span');
+  nameSpan.textContent=name;
+  pill.appendChild(nameSpan);
+  if(sel)pill.appendChild(makePillDots(name));
+
+  pill.addEventListener('click',function(ev){
+    if(ev.target.closest('.feed-pill-dots'))return;
+    if(menuChSelected.has(name)){
+      menuChSelected.delete(name);
+      pill.classList.remove('selected');
+      var d=pill.querySelector('.feed-pill-dots');
+      if(d)pill.removeChild(d);
+    }else{
+      menuChSelected.add(name);
+      pill.classList.add('selected');
+      pill.appendChild(makePillDots(name));
+    }
+    updateMenuChCount();
+  });
+  return pill;
 }
 
 function buildCustomPill(e,idx){
@@ -2217,10 +2245,15 @@ function buildCustomPill(e,idx){
   editBtn.setAttribute('aria-label','Rename');
   pill.appendChild(editBtn);
 
+  if(e.selected)pill.appendChild(makePillDots(e.current));
+
   pill.addEventListener('click',function(ev){
-    if(ev.target.closest('.feed-pill-edit'))return;
+    if(ev.target.closest('.feed-pill-edit')||ev.target.closest('.feed-pill-dots'))return;
     e.selected=!e.selected;
     pill.classList.toggle('selected',e.selected);
+    var d=pill.querySelector('.feed-pill-dots');
+    if(e.selected&&!d){pill.appendChild(makePillDots(e.current));}
+    else if(!e.selected&&d){pill.removeChild(d);}
     updateMenuChCount();
   });
 
