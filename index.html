@@ -980,41 +980,57 @@ async function loadUserSignals(){
 async function loadUserLikes(){
   if(!sb||!currentUser)return;
   try{
-    // Step 1: fetch liked rows ordered most-recently-liked first
-    var likesRes=await sb.from('user_likes').select('card_url,created_at').eq('user_id',currentUser.id).order('created_at',{ascending:false});
-    if(likesRes.error||!likesRes.data||likesRes.data.length===0)return;
-    var likeRows=likesRes.data;
-    var urls=likeRows.map(function(r){return r.card_url;});
-    urls.forEach(function(u){likedUrls.add(u);});
-
-    // Step 2: fetch full card rows for all liked URLs (unbounded — covers all time)
-    var cardsRes=await sb.from('cards').select('*').in('url',urls).order('score',{ascending:false});
-    // Build url→row map, keeping highest-scored row when a URL appears in multiple channels
-    var cardsByUrl={};
-    if(!cardsRes.error&&cardsRes.data){
-      cardsRes.data.forEach(function(row){
-        if(!cardsByUrl[row.url]||row.score>cardsByUrl[row.url].score)cardsByUrl[row.url]=row;
+    // Primary source: saved_cards holds full card data permanently
+    var savedRes=await sb.from('saved_cards').select('*').eq('user_id',currentUser.id).order('liked_at',{ascending:false});
+    var savedUrls=new Set();
+    if(!savedRes.error&&savedRes.data){
+      savedRes.data.forEach(function(row){
+        likedUrls.add(row.url);
+        savedUrls.add(row.url);
+        if(!savedCards.find(function(s){return s.url===row.url;})){
+          savedCards.push({url:row.url,card:{
+            url:row.url,channel:row.channel||'',insight:row.insight||'',
+            context:row.context||'',score:0,title:'',source:row.source||'',
+            author:row.author||'',authorBio:'',pubDate:row.pub_date||'',
+            imageUrl:row.image_url||''
+          }});
+        }
       });
     }
 
-    // Step 3: build savedCards in liked order (most recent first).
-    // For URLs no longer in the cards table, insert a stub so the card is
-    // still visible in the Deck with a note that it left the feed.
-    likeRows.forEach(function(likeRow){
-      var url=likeRow.card_url;
-      if(savedCards.find(function(s){return s.url===url;}))return;
-      var card;
-      if(cardsByUrl[url]){
-        card=normalizeCard(cardsByUrl[url]);
-      }else{
-        var host='';
-        try{host=new URL(url).hostname.replace(/^www\./,'');}catch(e){host=url.slice(0,50);}
-        card={url:url,channel:'',insight:'',context:'',score:0,title:'',source:host,author:'',authorBio:'',pubDate:'',imageUrl:'',_stub:true};
+    // Migration: user_likes rows not yet in saved_cards (pre-deploy likes).
+    // Fetch card data and backfill saved_cards; fall back to stub if card is gone.
+    var likesRes=await sb.from('user_likes').select('card_url,created_at').eq('user_id',currentUser.id).order('created_at',{ascending:false});
+    if(!likesRes.error&&likesRes.data){
+      var missing=likesRes.data.filter(function(r){return!savedUrls.has(r.card_url);});
+      if(missing.length>0){
+        missing.forEach(function(r){likedUrls.add(r.card_url);});
+        var missingUrls=missing.map(function(r){return r.card_url;});
+        var cardsRes=await sb.from('cards').select('*').in('url',missingUrls).order('score',{ascending:false});
+        var cardsByUrl={};
+        if(!cardsRes.error&&cardsRes.data){
+          cardsRes.data.forEach(function(row){
+            if(!cardsByUrl[row.url]||row.score>cardsByUrl[row.url].score)cardsByUrl[row.url]=row;
+          });
+        }
+        var backfill=[];
+        missing.forEach(function(likeRow){
+          var url=likeRow.card_url;
+          if(savedCards.find(function(s){return s.url===url;}))return;
+          if(cardsByUrl[url]){
+            var card=normalizeCard(cardsByUrl[url]);
+            savedCards.push({url:url,card:card});
+            backfill.push({user_id:currentUser.id,url:url,channel:card.channel||'',insight:card.insight||'',context:card.context||'',source:card.source||'',author:card.author||'',image_url:card.imageUrl||null,pub_date:card.pubDate||'',liked_at:likeRow.created_at||new Date().toISOString()});
+          }else{
+            var host='';try{host=new URL(url).hostname.replace(/^www\./,'');}catch(e){host=url.slice(0,50);}
+            savedCards.push({url:url,card:{url:url,channel:'',insight:'',context:'',score:0,title:'',source:host,author:'',authorBio:'',pubDate:'',imageUrl:'',_stub:true}});
+          }
+        });
+        if(backfill.length>0)sb.from('saved_cards').upsert(backfill,{onConflict:'user_id,url'}).then(function(){});
       }
-      savedCards.push({url:url,card:card});
-    });
+    }
 
-    // Step 4: reflect liked state on any cards already rendered in the feed
+    // Reflect liked state on already-rendered feed cards
     document.querySelectorAll('.feed-card').forEach(function(div){
       var btn=div.querySelector('[data-action="like"]');
       if(btn)btn.className='like-btn'+(likedUrls.has(div.dataset.url)?' liked':'');
@@ -1503,12 +1519,22 @@ function toggleLike(div,c){
     likedUrls.delete(c.url);
     savedCards=savedCards.filter(function(s){return s.url!==c.url;});
     if(btn)btn.className='like-btn';
-    if(sb&&currentUser)sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',c.url).then(function(){});
+    if(sb&&currentUser){
+      sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',c.url).then(function(){});
+      sb.from('saved_cards').delete().eq('user_id',currentUser.id).eq('url',c.url).then(function(){});
+    }
   }else{
     likedUrls.add(c.url);
     if(!savedCards.find(function(s){return s.url===c.url;})){savedCards.push({url:c.url,card:c});}
     if(btn)btn.className='like-btn liked';
-    if(sb&&currentUser)sb.from('user_likes').upsert({user_id:currentUser.id,card_url:c.url}).then(function(){});
+    if(sb&&currentUser){
+      sb.from('user_likes').upsert({user_id:currentUser.id,card_url:c.url}).then(function(){});
+      sb.from('saved_cards').upsert({
+        user_id:currentUser.id,url:c.url,channel:c.channel||'',insight:c.insight||'',
+        context:c.context||'',source:c.source||'',author:c.author||'',
+        image_url:c.imageUrl||null,pub_date:c.pubDate||''
+      },{onConflict:'user_id,url'}).then(function(){});
+    }
     recordSignal('like',c,{});
     sessionData.likes++;
   }
@@ -1761,7 +1787,10 @@ function renderDeck(){
 function removeDeckByUrl(url){
   savedCards=savedCards.filter(function(s){return s.url!==url;});
   likedUrls.delete(url);
-  if(sb&&currentUser)sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',url).then(function(){});
+  if(sb&&currentUser){
+    sb.from('user_likes').delete().eq('user_id',currentUser.id).eq('card_url',url).then(function(){});
+    sb.from('saved_cards').delete().eq('user_id',currentUser.id).eq('url',url).then(function(){});
+  }
   document.querySelectorAll('.feed-card[data-url]').forEach(function(div){
     if(div.dataset.url===url){var btn=div.querySelector('[data-action="like"]');if(btn)btn.className='like-btn';}
   });
