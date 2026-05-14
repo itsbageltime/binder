@@ -1031,8 +1031,17 @@ async function loadUserSignals(){
   }catch(e){}
 }
 
+async function backfillChannelRenames(){
+  if(!sb||!currentUser)return;
+  var key='backfill_battery_storage_v1_'+currentUser.id;
+  if(localStorage.getItem(key))return;
+  await sb.from('saved_cards').update({channel:'Battery'}).eq('user_id',currentUser.id).eq('channel','Battery Storage');
+  localStorage.setItem(key,'1');
+}
+
 async function loadUserLikes(){
   if(!sb||!currentUser)return;
+  backfillChannelRenames();
   try{
     // Primary source: saved_cards holds full card data permanently
     var savedRes=await sb.from('saved_cards').select('*').eq('user_id',currentUser.id).order('liked_at',{ascending:false});
@@ -2281,11 +2290,13 @@ async function saveChannelEdits(){
   if(total<3){document.getElementById('menuChError').textContent='Select at least 3 feeds.';return;}
   document.getElementById('menuChError').textContent='';
 
-  // Update cards table for any renamed custom channels
+  // Update cards and saved_cards for any renamed custom channels
   if(sb&&currentUser){
     var renames=activeCustom.filter(function(e){return e.orig&&e.current.trim()!==e.orig;});
     for(var i=0;i<renames.length;i++){
-      await sb.from('cards').update({channel:renames[i].current.trim()}).eq('channel',renames[i].orig);
+      var oldName=renames[i].orig, newName=renames[i].current.trim();
+      await sb.from('cards').update({channel:newName}).eq('channel',oldName);
+      await sb.from('saved_cards').update({channel:newName}).eq('user_id',currentUser.id).eq('channel',oldName);
     }
   }
 
