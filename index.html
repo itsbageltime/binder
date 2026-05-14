@@ -116,8 +116,8 @@ header .date { font-size: 12px; color: var(--muted); }
 .settings-panel-title { font-size: 16px; font-weight: 600; color: var(--body-text); }
 .settings-panel-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .settings-panel-footer { padding: 16px 20px 32px; border-top: 1px solid var(--divider); flex-shrink: 0; }
-.nav { display: flex; border-top: 1px solid var(--divider); flex-shrink: 0; order: 10; background: var(--bg); padding-bottom: env(safe-area-inset-bottom); }
-.nav-btn { flex: 1; min-height: 44px; padding: 10px 6px 8px; background: none; border: none; color: var(--nav-inactive); font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Inter', sans-serif; position: relative; }
+.nav { display: flex; border-top: 1px solid var(--divider); flex-shrink: 0; order: 10; background: var(--bg); padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+.nav-btn { flex: 1; min-height: 56px; padding: 10px 6px 8px; background: none; border: none; color: var(--nav-inactive); font-size: 11px; font-weight: 500; cursor: pointer; transition: color 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: 'Inter', sans-serif; position: relative; }
 .nav-btn::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--nav-active); position: absolute; top: 4px; opacity: 0; transition: opacity 0.2s; }
 .nav-btn.active { color: var(--nav-active); }
 .nav-btn.active::before { opacity: 1; }
