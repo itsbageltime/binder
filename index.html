@@ -1187,7 +1187,7 @@ function buildPageContent(el,channelName,live){
       if(!best[ch]||c._pScore>best[ch]._pScore)best[ch]=c;
     });
     var batch=userChans.map(function(ch){return best[ch];}).filter(Boolean);
-    batch.sort(function(a,b){return b._pScore-a._pScore;});
+    batch.sort(function(a,b){var ai=a.imageUrl?1:0,bi=b.imageUrl?1:0;return bi-ai||b._pScore-a._pScore;});
     if(batch.length===0){
       el.innerHTML='<div class="empty-state">No cards yet.</div>';
       return;
@@ -1218,7 +1218,7 @@ function buildPageContent(el,channelName,live){
   }
   runDates.forEach(function(runDate,i){
     var batch=groups[runDate];
-    batch.sort(function(a,b){return b._pScore-a._pScore;});
+    batch.sort(function(a,b){var ai=a.imageUrl?1:0,bi=b.imageUrl?1:0;return bi-ai||b._pScore-a._pScore;});
     batch=batch.slice(0,10);
     var divider=document.createElement('div');
     divider.className='run-divider';
