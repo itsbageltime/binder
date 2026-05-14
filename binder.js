@@ -202,9 +202,9 @@ const channels = [
   {
     name: 'Markets & Investing',
     feeds: [
-      'https://seekingalpha.com/market-news/rss',
-      'https://feeds.finance.yahoo.com/rss/2.0/headline',
-      'https://feeds.wsj.com/xml/rss/3_7085.xml',
+      'https://feeds.marketwatch.com/marketwatch/topstories/',
+      'https://feeds.bloomberg.com/markets/news.rss',
+      'https://www.ft.com/rss/home',
     ]
   },
   {
@@ -492,6 +492,9 @@ function extractImageUrl(item) {
   if (item.mediaThumbnail && item.mediaThumbnail.$ && item.mediaThumbnail.$.url) return item.mediaThumbnail.$.url;
   if (item.mediaContent && item.mediaContent.$ && item.mediaContent.$.url) return item.mediaContent.$.url;
   if (item.enclosure && item.enclosure.url && /^image/i.test(item.enclosure.type || '')) return item.enclosure.url;
+  const html = item['content:encoded'] || item.content || item.description || '';
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (m && m[1] && !m[1].startsWith('data:')) return m[1];
   return null;
 }
 
@@ -502,8 +505,9 @@ async function fetchFeed(url) {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Binder/1.0)' },
     customFields: {
       item: [
-        ['media:content', 'mediaContent', { keepArray: false }],
+        ['media:content',   'mediaContent',   { keepArray: false }],
         ['media:thumbnail', 'mediaThumbnail', { keepArray: false }],
+        ['content:encoded', 'content:encoded'],
       ]
     }
   });
