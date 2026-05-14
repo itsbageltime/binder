@@ -327,6 +327,10 @@ body.light .feed-pill.selected { background: #2C2C2A; border-color: #4CAF50; col
 .feed-pill-edit { background: none; border: none; color: inherit; opacity: 0.6; cursor: pointer; font-size: 11px; padding: 0 0 0 2px; line-height: 1; flex-shrink: 0; }
 .feed-pill-dots { background: none; border: none; color: inherit; opacity: 0.45; cursor: pointer; font-size: 11px; letter-spacing: -1px; padding: 0 0 0 5px; line-height: 1; flex-shrink: 0; }
 .feed-pill-edit-input { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; outline: none; padding: 0; min-width: 40px; max-width: 150px; -webkit-appearance: none; }
+.pill-action-menu { position: fixed; background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 12px; z-index: 400; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.45); min-width: 148px; }
+.pill-action-row { display: block; width: 100%; padding: 13px 16px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--body-text); cursor: pointer; text-align: left; background: none; border: none; }
+.pill-action-row:not(:last-child) { border-bottom: 1px solid var(--divider); }
+.pill-action-row:active { background: var(--input-bg); }
 #menuChSaveBtn { width: auto; padding: 10px 24px; font-size: 14px; font-weight: 500; display: block; margin: 0 auto; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -2231,6 +2235,35 @@ function buildStdPill(name){
   return pill;
 }
 
+var _pillActionState=null;
+function openPillActionMenu(btn,pill,e,idx){
+  _pillActionState={pill:pill,e:e,idx:idx};
+  var menu=document.getElementById('pillActionMenu');
+  var rect=btn.getBoundingClientRect();
+  var left=Math.min(rect.left,window.innerWidth-160);
+  menu.style.top=(rect.bottom+6)+'px';
+  menu.style.left=left+'px';
+  menu.style.display='block';
+}
+function closePillActionMenu(){
+  document.getElementById('pillActionMenu').style.display='none';
+  _pillActionState=null;
+}
+function pillActionRename(){
+  var s=_pillActionState;
+  closePillActionMenu();
+  if(s)startCustomPillEdit(s.pill,s.e,s.idx);
+}
+function pillActionTune(){
+  var s=_pillActionState;
+  closePillActionMenu();
+  if(s)openAlgoPanel(s.e.current);
+}
+document.addEventListener('click',function(ev){
+  var menu=document.getElementById('pillActionMenu');
+  if(menu&&menu.style.display!=='none'&&!menu.contains(ev.target))closePillActionMenu();
+});
+
 function buildCustomPill(e,idx){
   var pill=document.createElement('span');
   pill.className='feed-pill'+(e.selected?' selected':'');
@@ -2240,27 +2273,27 @@ function buildCustomPill(e,idx){
   nameSpan.textContent=e.current;
   pill.appendChild(nameSpan);
 
-  var editBtn=document.createElement('button');
-  editBtn.className='feed-pill-edit';
-  editBtn.innerHTML='✎';
-  editBtn.setAttribute('aria-label','Rename');
-  pill.appendChild(editBtn);
-
-  if(e.selected)pill.appendChild(makePillDots(e.current));
+  if(e.selected){
+    var dotsBtn=document.createElement('button');
+    dotsBtn.className='feed-pill-dots';
+    dotsBtn.textContent='···';
+    dotsBtn.setAttribute('aria-label','Options');
+    dotsBtn.addEventListener('click',function(ev){ev.stopPropagation();openPillActionMenu(dotsBtn,pill,e,idx);});
+    pill.appendChild(dotsBtn);
+  }
 
   pill.addEventListener('click',function(ev){
-    if(ev.target.closest('.feed-pill-edit')||ev.target.closest('.feed-pill-dots'))return;
+    if(ev.target.closest('.feed-pill-dots'))return;
     e.selected=!e.selected;
     pill.classList.toggle('selected',e.selected);
     var d=pill.querySelector('.feed-pill-dots');
-    if(e.selected&&!d){pill.appendChild(makePillDots(e.current));}
-    else if(!e.selected&&d){pill.removeChild(d);}
+    if(e.selected&&!d){
+      var btn=document.createElement('button');
+      btn.className='feed-pill-dots';btn.textContent='···';btn.setAttribute('aria-label','Options');
+      btn.addEventListener('click',function(ev){ev.stopPropagation();openPillActionMenu(btn,pill,e,idx);});
+      pill.appendChild(btn);
+    }else if(!e.selected&&d){pill.removeChild(d);}
     updateMenuChCount();
-  });
-
-  editBtn.addEventListener('click',function(ev){
-    ev.stopPropagation();
-    startCustomPillEdit(pill,e,idx);
   });
 
   return pill;
@@ -2554,6 +2587,11 @@ updateTimer();
 // ─── Init ───────────────────────────────────────────────────────────────────────
 initAuth();
 </script>
+
+<div class="pill-action-menu" id="pillActionMenu" style="display:none;">
+  <button class="pill-action-row" onclick="pillActionRename()">Rename</button>
+  <button class="pill-action-row" onclick="pillActionTune()">Tune feed</button>
+</div>
 
 <div class="confirm-overlay" id="deckRemoveDialog" style="display:none;">
   <div class="confirm-dialog">
