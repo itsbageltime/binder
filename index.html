@@ -980,19 +980,36 @@ async function loadUserSignals(){
 async function loadUserLikes(){
   if(!sb||!currentUser)return;
   try{
-    var res=await sb.from('user_likes').select('card_url').eq('user_id',currentUser.id);
-    if(res.error||!res.data)return;
-    res.data.forEach(function(r){
-      likedUrls.add(r.card_url);
-      var c=allCards.find(function(x){return x.url===r.card_url;});
-      if(c&&!savedCards.find(function(s){return s.url===r.card_url;}))savedCards.push({url:r.card_url,card:c});
-    });
-    // Refresh like buttons already rendered
+    // Step 1: fetch liked URLs
+    var likesRes=await sb.from('user_likes').select('card_url').eq('user_id',currentUser.id);
+    if(likesRes.error||!likesRes.data||likesRes.data.length===0)return;
+    var urls=likesRes.data.map(function(r){return r.card_url;});
+    urls.forEach(function(u){likedUrls.add(u);});
+
+    // Step 2: fetch full card rows from Supabase for all liked URLs.
+    // allCards only covers the last 7 days, so liked cards older than that
+    // must be fetched directly. Order by score desc so dedup keeps best version.
+    var cardsRes=await sb.from('cards').select('*').in('url',urls).order('score',{ascending:false});
+    if(!cardsRes.error&&cardsRes.data){
+      var seen=new Set();
+      // Walk in liked-URL order so savedCards reflects recency
+      urls.forEach(function(url){
+        if(seen.has(url))return;
+        var row=cardsRes.data.find(function(r){return r.url===url;});
+        if(!row)return;
+        seen.add(url);
+        if(!savedCards.find(function(s){return s.url===url;})){
+          savedCards.push({url:url,card:normalizeCard(row)});
+        }
+      });
+    }
+
+    // Step 3: reflect liked state on any cards already rendered in the feed
     document.querySelectorAll('.feed-card').forEach(function(div){
       var btn=div.querySelector('[data-action="like"]');
       if(btn)btn.className='like-btn'+(likedUrls.has(div.dataset.url)?' liked':'');
     });
-  }catch(e){}
+  }catch(e){console.error('loadUserLikes:',e);}
 }
 
 async function loadCards(){
