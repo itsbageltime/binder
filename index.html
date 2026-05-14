@@ -327,10 +327,6 @@ body.light .feed-pill.selected { background: #2C2C2A; border-color: #4CAF50; col
 .feed-pill-edit { background: none; border: none; color: inherit; opacity: 0.6; cursor: pointer; font-size: 11px; padding: 0 0 0 2px; line-height: 1; flex-shrink: 0; }
 .feed-pill-dots { background: none; border: none; color: inherit; opacity: 0.45; cursor: pointer; font-size: 11px; letter-spacing: -1px; padding: 0 0 0 5px; line-height: 1; flex-shrink: 0; }
 .feed-pill-edit-input { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; outline: none; padding: 0; min-width: 40px; max-width: 150px; -webkit-appearance: none; }
-.pill-action-menu { position: fixed; background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 12px; z-index: 400; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.45); min-width: 148px; }
-.pill-action-row { display: block; width: 100%; padding: 13px 16px; font-size: 14px; font-family: 'Inter', sans-serif; color: var(--body-text); cursor: pointer; text-align: left; background: none; border: none; }
-.pill-action-row:not(:last-child) { border-bottom: 1px solid var(--divider); }
-.pill-action-row:active { background: var(--input-bg); }
 #menuChSaveBtn { width: auto; padding: 10px 24px; font-size: 14px; font-weight: 500; display: block; margin: 0 auto; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -479,6 +475,14 @@ body.light .feed-pill.selected { background: #2C2C2A; border-color: #4CAF50; col
       <div class="panel-header">
         <button class="panel-back" onclick="closeAlgoPanel()">← Back</button>
         <div id="algoPanelTitle" style="font-size:15px;font-weight:600;color:var(--body-text);font-family:'Inter',sans-serif;"></div>
+      </div>
+      <div id="algoRenameSection" class="algo-section" style="display:none;">
+        <div class="algo-label">Feed name</div>
+        <div class="algo-add-row">
+          <input class="algo-input" id="algoRenameInput" type="text" autocapitalize="words" onkeydown="if(event.key==='Enter')submitAlgoRename()">
+          <button class="algo-add-btn" onclick="submitAlgoRename()">Save</button>
+        </div>
+        <div id="algoRenameMsg" style="font-size:12px;color:#4CAF50;margin-top:6px;min-height:16px;font-family:'Inter',sans-serif;"></div>
       </div>
       <div id="algoSummary" class="algo-summary"></div>
       <div class="algo-section">
@@ -1849,11 +1853,44 @@ function openAlgoPanel(channel){
   currentAlgoChannel=channel;
   document.getElementById('algoBoostInput').value='';
   document.getElementById('algoBlockInput').value='';
+  document.getElementById('algoRenameMsg').textContent='';
+  var isCustom=CHANNEL_DEFS.every(function(c){return c.name!==channel;});
+  var renameSection=document.getElementById('algoRenameSection');
+  renameSection.style.display=isCustom?'block':'none';
+  if(isCustom)document.getElementById('algoRenameInput').value=channel;
   renderAlgoPanel();
   document.getElementById('algoPanel').classList.add('open');
 }
 
 function closeAlgoPanel(){document.getElementById('algoPanel').classList.remove('open');}
+
+async function submitAlgoRename(){
+  var input=document.getElementById('algoRenameInput');
+  var newName=input.value.trim();
+  if(!newName||newName===currentAlgoChannel)return;
+  var oldName=currentAlgoChannel;
+  if(sb&&currentUser){
+    await sb.from('cards').update({channel:newName}).eq('channel',oldName);
+    await sb.from('saved_cards').update({channel:newName}).eq('user_id',currentUser.id).eq('channel',oldName);
+  }
+  // Update userProfile.channels
+  if(userProfile&&userProfile.channels){
+    userProfile.channels=userProfile.channels.map(function(c){return c===oldName?newName:c;});
+    if(sb&&currentUser)sb.from('profiles').upsert({user_id:currentUser.id,email:currentUser.email,channels:userProfile.channels}).then(function(){});
+  }
+  // Update menuCustomEdits if Edit Feeds is open
+  menuCustomEdits.forEach(function(e){if(e.orig===oldName||e.current===oldName){e.current=newName;}});
+  // Refresh Edit Feeds grid if visible
+  var screen=document.getElementById('screenEditFeeds');
+  if(screen&&screen.classList.contains('open'))initMenuEditChannels();
+  // Carry rename into boost/block state
+  if(channelBoosts[oldName]){channelBoosts[newName]=channelBoosts[oldName];delete channelBoosts[oldName];}
+  if(channelBlocks[oldName]){channelBlocks[newName]=channelBlocks[oldName];delete channelBlocks[oldName];}
+  currentAlgoChannel=newName;
+  document.getElementById('algoPanelTitle').textContent='Your '+newName+' feed';
+  document.getElementById('algoRenameMsg').textContent='Saved';
+  buildChannels();
+}
 
 function submitBoostTopic(){
   var input=document.getElementById('algoBoostInput');
@@ -2235,35 +2272,6 @@ function buildStdPill(name){
   return pill;
 }
 
-var _pillActionState=null;
-function openPillActionMenu(btn,pill,e,idx){
-  _pillActionState={pill:pill,e:e,idx:idx};
-  var menu=document.getElementById('pillActionMenu');
-  var rect=btn.getBoundingClientRect();
-  var left=Math.min(rect.left,window.innerWidth-160);
-  menu.style.top=(rect.bottom+6)+'px';
-  menu.style.left=left+'px';
-  menu.style.display='block';
-}
-function closePillActionMenu(){
-  document.getElementById('pillActionMenu').style.display='none';
-  _pillActionState=null;
-}
-function pillActionRename(){
-  var s=_pillActionState;
-  closePillActionMenu();
-  if(s)startCustomPillEdit(s.pill,s.e,s.idx);
-}
-function pillActionTune(){
-  var s=_pillActionState;
-  closePillActionMenu();
-  if(s)openAlgoPanel(s.e.current);
-}
-document.addEventListener('click',function(ev){
-  var menu=document.getElementById('pillActionMenu');
-  if(menu&&menu.style.display!=='none'&&!menu.contains(ev.target))closePillActionMenu();
-});
-
 function buildCustomPill(e,idx){
   var pill=document.createElement('span');
   pill.className='feed-pill'+(e.selected?' selected':'');
@@ -2273,30 +2281,28 @@ function buildCustomPill(e,idx){
   nameSpan.textContent=e.current;
   pill.appendChild(nameSpan);
 
-  if(e.selected){
-    var dotsBtn=document.createElement('button');
-    dotsBtn.className='feed-pill-dots';
-    dotsBtn.textContent='···';
-    dotsBtn.setAttribute('aria-label','Options');
-    dotsBtn.addEventListener('click',function(ev){ev.stopPropagation();openPillActionMenu(dotsBtn,pill,e,idx);});
-    pill.appendChild(dotsBtn);
-  }
+  if(e.selected)pill.appendChild(makeCustomPillDots(e));
 
   pill.addEventListener('click',function(ev){
     if(ev.target.closest('.feed-pill-dots'))return;
     e.selected=!e.selected;
     pill.classList.toggle('selected',e.selected);
     var d=pill.querySelector('.feed-pill-dots');
-    if(e.selected&&!d){
-      var btn=document.createElement('button');
-      btn.className='feed-pill-dots';btn.textContent='···';btn.setAttribute('aria-label','Options');
-      btn.addEventListener('click',function(ev){ev.stopPropagation();openPillActionMenu(btn,pill,e,idx);});
-      pill.appendChild(btn);
-    }else if(!e.selected&&d){pill.removeChild(d);}
+    if(e.selected&&!d){pill.appendChild(makeCustomPillDots(e));}
+    else if(!e.selected&&d){pill.removeChild(d);}
     updateMenuChCount();
   });
 
   return pill;
+}
+
+function makeCustomPillDots(e){
+  var btn=document.createElement('button');
+  btn.className='feed-pill-dots';
+  btn.textContent='···';
+  btn.setAttribute('aria-label','Settings');
+  btn.addEventListener('click',function(ev){ev.stopPropagation();openAlgoPanel(e.current);});
+  return btn;
 }
 
 function startCustomPillEdit(pill,e,idx){
@@ -2587,11 +2593,6 @@ updateTimer();
 // ─── Init ───────────────────────────────────────────────────────────────────────
 initAuth();
 </script>
-
-<div class="pill-action-menu" id="pillActionMenu" style="display:none;">
-  <button class="pill-action-row" onclick="pillActionRename()">Rename</button>
-  <button class="pill-action-row" onclick="pillActionTune()">Tune feed</button>
-</div>
 
 <div class="confirm-overlay" id="deckRemoveDialog" style="display:none;">
   <div class="confirm-dialog">
