@@ -220,8 +220,8 @@ header .date { font-size: 12px; color: var(--muted); }
 .voices-section-header:first-child { margin-top: 0; }
 .journalist-panel { position: absolute; inset: 0; background: var(--panel-bg); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 10; overflow-y: auto; }
 .journalist-panel.open { transform: translateY(0); }
-.ch-tune { font-size: 9px; opacity: 0.35; margin-left: 3px; vertical-align: middle; cursor: pointer; pointer-events: all; }
-.channel-btn.active .ch-tune { opacity: 0.65; }
+.ch-tune { font-size: 11px; opacity: 0.5; margin-left: 4px; vertical-align: middle; cursor: pointer; pointer-events: all; }
+.channel-btn.active .ch-tune { opacity: 0.75; }
 .algo-summary { background: var(--card-surface); border: var(--card-border-width) solid var(--card-border); border-radius: 14px; padding: 16px 18px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; font-family: 'Inter', sans-serif; }
 .algo-section { margin-bottom: 28px; }
 .algo-label { font-size: 15px; font-weight: 600; color: var(--body-text); margin-bottom: 4px; font-family: 'Inter', sans-serif; }
@@ -311,6 +311,14 @@ body.light .algo-pill.block { border-color: #e05050; background: #fce8e8; }
 .channel-select-footer { padding: 16px 20px; flex-shrink: 0; border-top: 1px solid var(--divider); }
 .channel-start-btn { width: 100%; padding: 14px; background: #4CAF50; color: #000; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; font-family: 'Inter', sans-serif; }
 .channel-start-btn:disabled { background: var(--divider); color: var(--muted); cursor: not-allowed; }
+/* Edit Feeds pill layout */
+.feed-pill-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.feed-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 8px 14px; font-size: 13px; font-family: 'Inter', sans-serif; font-weight: 500; cursor: pointer; border: var(--card-border-width) solid var(--card-border); background: none; color: var(--muted); transition: background 0.15s, border-color 0.15s, color 0.15s; user-select: none; -webkit-user-select: none; }
+.feed-pill.selected { background: #1a3a1a; border-color: #4CAF50; color: #4CAF50; }
+body.light .feed-pill.selected { background: #e8f5e9; border-color: #4CAF50; color: #2e7d32; }
+.feed-pill-edit { background: none; border: none; color: inherit; opacity: 0.6; cursor: pointer; font-size: 11px; padding: 0 0 0 2px; line-height: 1; flex-shrink: 0; }
+.feed-pill-edit-input { background: none; border: none; border-bottom: 1px solid currentColor; color: inherit; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; outline: none; padding: 0; min-width: 40px; max-width: 150px; -webkit-appearance: none; }
+#menuChSaveBtn { width: auto; padding: 10px 24px; font-size: 14px; font-weight: 500; display: block; margin: 0 auto; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -507,7 +515,7 @@ body.light .algo-pill.block { border-color: #e05050; background: #fce8e8; }
         <div class="channel-select-count" id="menuChCount" style="margin-top:4px;"></div>
       </div>
       <div style="padding: 12px 20px 20px;">
-        <div class="channel-grid" id="menuChGrid"></div>
+        <div class="feed-pill-grid" id="menuChGrid"></div>
         <div class="channel-custom-row" style="margin-top:12px;">
           <input class="channel-custom-input" id="menuAddChInput" type="text" placeholder="Add custom feed" autocapitalize="words">
           <button class="channel-custom-add" onclick="addMenuCustomChannel()">+</button>
@@ -2145,59 +2153,62 @@ function initMenuEditChannels(){
 
   CHANNEL_DEFS.forEach(function(ch){
     var sel=menuChSelected.has(ch.name);
-    var tile=document.createElement('div');
-    tile.className='channel-tile'+(sel?' selected':'');
-    tile.dataset.channel=ch.name;
-    tile.innerHTML='<div class="channel-tile-name">'+escHtml(ch.name)+'</div><div class="channel-tile-desc">'+escHtml(ch.desc)+'</div>';
-    tile.addEventListener('click',function(){
-      if(menuChSelected.has(ch.name)){menuChSelected.delete(ch.name);tile.classList.remove('selected');}
-      else{menuChSelected.add(ch.name);tile.classList.add('selected');}
+    var pill=document.createElement('span');
+    pill.className='feed-pill'+(sel?' selected':'');
+    pill.dataset.channel=ch.name;
+    pill.textContent=ch.name;
+    pill.addEventListener('click',function(){
+      if(menuChSelected.has(ch.name)){menuChSelected.delete(ch.name);pill.classList.remove('selected');}
+      else{menuChSelected.add(ch.name);pill.classList.add('selected');}
       updateMenuChCount();
     });
-    grid.appendChild(tile);
+    grid.appendChild(pill);
   });
 
   menuCustomEdits.forEach(function(e,i){
-    grid.appendChild(buildCustomTile(e,i));
+    grid.appendChild(buildCustomPill(e,i));
   });
 
   updateMenuChCount();
 }
 
-function buildCustomTile(e,idx){
-  var tile=document.createElement('div');
-  tile.className='channel-tile'+(e.selected?' selected':'');
-  tile.dataset.customIdx=idx;
-  tile.innerHTML=
-    '<div class="channel-tile-top">'+
-      '<div class="channel-tile-name">'+escHtml(e.current)+'</div>'+
-      '<button class="channel-tile-edit-btn">✎</button>'+
-    '</div>'+
-    '<div class="channel-tile-desc">Custom feed</div>';
+function buildCustomPill(e,idx){
+  var pill=document.createElement('span');
+  pill.className='feed-pill'+(e.selected?' selected':'');
+  pill.dataset.customIdx=idx;
 
-  tile.addEventListener('click',function(ev){
-    if(ev.target.closest('.channel-tile-edit-btn'))return;
+  var nameSpan=document.createElement('span');
+  nameSpan.textContent=e.current;
+  pill.appendChild(nameSpan);
+
+  var editBtn=document.createElement('button');
+  editBtn.className='feed-pill-edit';
+  editBtn.innerHTML='✎';
+  editBtn.setAttribute('aria-label','Rename');
+  pill.appendChild(editBtn);
+
+  pill.addEventListener('click',function(ev){
+    if(ev.target.closest('.feed-pill-edit'))return;
     e.selected=!e.selected;
-    tile.classList.toggle('selected',e.selected);
+    pill.classList.toggle('selected',e.selected);
     updateMenuChCount();
   });
 
-  tile.querySelector('.channel-tile-edit-btn').addEventListener('click',function(ev){
+  editBtn.addEventListener('click',function(ev){
     ev.stopPropagation();
-    startCustomTileEdit(tile,e);
+    startCustomPillEdit(pill,e,idx);
   });
 
-  return tile;
+  return pill;
 }
 
-function startCustomTileEdit(tile,e){
-  tile.innerHTML=
-    '<div class="channel-tile-top">'+
-      '<input class="channel-tile-edit-input" value="'+escHtml(e.current)+'" placeholder="Channel name">'+
-    '</div>'+
-    '<div class="channel-tile-desc">Press Enter to save</div>';
-
-  var input=tile.querySelector('.channel-tile-edit-input');
+function startCustomPillEdit(pill,e,idx){
+  pill.innerHTML='';
+  var input=document.createElement('input');
+  input.className='feed-pill-edit-input';
+  input.value=e.current;
+  input.style.width=Math.max(60,e.current.length*8)+'px';
+  pill.appendChild(input);
   input.focus();
   input.select();
 
@@ -2207,20 +2218,21 @@ function startCustomTileEdit(tile,e){
     done=true;
     var newName=input.value.trim();
     if(newName)e.current=newName;
-    var idx=parseInt(tile.dataset.customIdx);
-    var fresh=buildCustomTile(e,idx);
-    if(tile.parentNode)tile.parentNode.replaceChild(fresh,tile);
+    var fresh=buildCustomPill(e,idx);
+    if(pill.parentNode)pill.parentNode.replaceChild(fresh,pill);
   }
 
   input.addEventListener('keydown',function(ev){
     if(ev.key==='Enter'){ev.preventDefault();finish();}
     if(ev.key==='Escape'){
       done=true;
-      var idx=parseInt(tile.dataset.customIdx);
-      if(tile.parentNode)tile.parentNode.replaceChild(buildCustomTile(e,idx),tile);
+      if(pill.parentNode)pill.parentNode.replaceChild(buildCustomPill(e,idx),pill);
     }
   });
   input.addEventListener('blur',finish);
+  input.addEventListener('input',function(){
+    input.style.width=Math.max(60,input.value.length*8)+'px';
+  });
 }
 
 function updateMenuChCount(){
@@ -2240,7 +2252,7 @@ function addMenuCustomChannel(){
   menuCustomEdits.push(e);
   var idx=menuCustomEdits.length-1;
   console.log('[addMenuCustomChannel] added "'+val+'" at idx '+idx+', menuCustomEdits.length='+menuCustomEdits.length);
-  document.getElementById('menuChGrid').appendChild(buildCustomTile(e,idx));
+  document.getElementById('menuChGrid').appendChild(buildCustomPill(e,idx));
   input.value='';
   var addBtn=document.querySelector('#screenEditFeeds .channel-custom-add');
   if(addBtn)addBtn.classList.remove('ready');
