@@ -663,12 +663,20 @@ async function withConcurrency(limit, tasks) {
 
 async function loadSeenUrls() {
   if (!supabase) return new Set();
+  const PAGE = 1000;
+  const result = new Set();
+  let from = 0;
   try {
-    const { data, error } = await supabase.from('seen_urls').select('url').range(0, 99999);
-    if (error) { console.warn('Could not load seen_urls:', error.message); return new Set(); }
-    return new Set((data || []).map(r => r.url));
+    while (true) {
+      const { data, error } = await supabase.from('seen_urls').select('url').range(from, from + PAGE - 1);
+      if (error) { console.warn('Could not load seen_urls page:', error.message); break; }
+      (data || []).forEach(r => result.add(r.url));
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
+    }
+    return result;
   } catch(e) {
-    return new Set();
+    return result;
   }
 }
 
@@ -687,15 +695,22 @@ async function pruneSeenUrls() {
 async function markUrlsSeen(urls) {
   if (!supabase || urls.length === 0) return;
   const now = new Date().toISOString();
-  try {
-    const { error } = await supabase.from('seen_urls').upsert(
-      urls.map(url => ({ url, seen_at: now })),
-      { onConflict: 'url', ignoreDuplicates: true }
-    );
-    if (error) console.warn('Could not write seen_urls:', error.message);
-  } catch(e) {
-    console.warn('Could not write seen_urls:', e.message);
+  const CHUNK = 500;
+  let written = 0;
+  for (let i = 0; i < urls.length; i += CHUNK) {
+    const batch = urls.slice(i, i + CHUNK);
+    try {
+      const { error } = await supabase.from('seen_urls').upsert(
+        batch.map(url => ({ url, seen_at: now })),
+        { onConflict: 'url', ignoreDuplicates: true }
+      );
+      if (error) console.warn('Could not write seen_urls batch ' + (i/CHUNK+1) + ':', error.message);
+      else written += batch.length;
+    } catch(e) {
+      console.warn('Could not write seen_urls batch ' + (i/CHUNK+1) + ':', e.message);
+    }
   }
+  console.log('Marked ' + written + '/' + urls.length + ' URLs as seen.');
 }
 
 async function loadFollowedJournalists() {
@@ -922,14 +937,14 @@ async function run() {
   }
   // Phase 1b: NewsAPI supplement for hardcoded channels (last 48h)
   {
-    const from48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    const from10h = new Date(Date.now() - 10 * 3600 * 1000).toISOString();
     console.log('\nNewsAPI supplement for hardcoded channels...');
     console.log('  key: ' + (NEWSAPI_KEY ? 'set (' + NEWSAPI_KEY.length + ' chars)' : 'NOT SET — will skip'));
-    console.log('  from: ' + from48h);
+    console.log('  from: ' + from10h + ' (10h window)');
     for (const channel of channels) {
       const query = CHANNEL_NEWSAPI_QUERIES[channel.name];
       if (!query) continue;
-      const articles = await fetchNewsApiArticles(query, from48h);
+      const articles = await fetchNewsApiArticles(query, from10h);
       let added = 0;
       for (const article of articles) {
         if (!article.title || !article.description) continue;
@@ -947,7 +962,7 @@ async function run() {
   // Phase 1c: custom channels via NewsAPI (last 24h, max 100 per channel)
   const customChannelNames = await loadCustomChannels();
   if (customChannelNames.length > 0) {
-    const customFrom24h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    const customFrom24h = new Date(Date.now() - 10 * 3600 * 1000).toISOString();
     console.log('\nCustom channels: ' + customChannelNames.join(', '));
     for (const channelName of customChannelNames) {
       const articles = await fetchNewsApiArticles(expandChannelQuery(channelName), customFrom24h);
@@ -1017,7 +1032,6 @@ async function run() {
 
   await withConcurrency(10, tasks);
   await markUrlsSeen(queue.map(({ article, channelName }) => article.url + '|' + channelName));
-  console.log('Marked ' + queue.length + ' URLs as seen.');
 
   // Build review output grouped by channel order
   const output = [];
