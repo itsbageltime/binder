@@ -2,10 +2,18 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
-    { "src": "admin.html", "use": "@vercel/static" }
+    { "src": "admin.html", "use": "@vercel/static" },
+    { "src": "api/trigger-pipeline.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/admin", "dest": "/admin.html" },
+    { "src": "/api/trigger-pipeline", "dest": "/api/trigger-pipeline.js" },
     { "src": "/(.*)", "dest": "/$1" }
+  ],
+  "crons": [
+    {
+      "path": "/api/trigger-pipeline",
+      "schedule": "30 11 * * *"
+    }
   ]
 }

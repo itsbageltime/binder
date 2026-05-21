@@ -1,18 +1,9 @@
 name: Keep-alive
 
-# Runs at 10am UTC (6am EDT / 5am EST).
-# 1. Commits a timestamp to keep the repo active so GitHub doesn't
-#    deprioritize its scheduled workflows.
-# 2. Explicitly dispatches the Binder Pipeline via the GitHub API so we
-#    don't rely on GitHub's scheduler for the pipeline at all.
-#
-# Note: GITHUB_TOKEN is allowed to trigger workflow_dispatch events on
-# other workflows in the same repo — this is explicitly exempt from the
-# "token-triggered workflows can't start other workflows" restriction.
+# Schedule removed — pipeline is now triggered by Vercel Cron at 11:30 UTC.
+# This workflow is kept for manual dispatch only (repo activity commit).
 
 on:
-  schedule:
-    - cron: '0 10 * * *'   # 6am EDT (UTC-4); drifts to 5am in EST winter months
   workflow_dispatch:
 
 jobs:
@@ -20,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write    # required to dispatch workflows via the API
 
     steps:
       - uses: actions/checkout@v4
@@ -37,13 +27,3 @@ jobs:
           git add .github/keepalive
           git diff --cached --quiet || git commit -m "chore: keepalive $(date -u +%Y-%m-%d)"
           git push
-
-      - name: Dispatch Binder Pipeline
-        run: |
-          curl -fsSL \
-            -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/pipeline.yml/dispatches \
-            -d '{"ref":"main"}'
