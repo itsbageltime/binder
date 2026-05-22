@@ -251,6 +251,56 @@ const channels = [
   },
 ];
 
+// ─── Retired channels — removed from suggested list but kept alive for existing followers ──
+// A retired channel keeps running as long as ≥1 user profile still lists it.
+// It stops only when loadActiveRetiredChannels() returns an empty set for it.
+const RETIRED_CHANNELS = [
+  {
+    name: 'Urban Development',
+    newsapiQuery: 'urban housing city transit planning zoning policy',
+    feeds: [
+      'https://nextcity.org/feeds/features',
+      'https://nextcity.org/all.rss',
+      'https://planetizen.com/frontpage/feed',
+      'https://www.strongtowns.org/journal?format=rss',
+      'https://www.theurbanist.org/feed',
+      'https://www.smartcitiesdive.com/feeds/news',
+      'https://usa.streetsblog.org/feed',
+      'https://nyc.streetsblog.org/feed',
+      'https://sf.streetsblog.org/feed',
+      'https://la.streetsblog.org/feed',
+      'https://www.governing.com/rss',
+      'https://citymonitor.ai/feed',
+      'https://www.bloomberg.com/citylab/rss',
+    ],
+  },
+  {
+    name: 'Fashion',
+    newsapiQuery: 'fashion design style',
+    feeds: [
+      'https://www.businessoffashion.com/feed',
+      'https://wwd.com/feed',
+      'https://hypebeast.com/feed',
+      'https://fashionista.com/feed',
+      'https://www.vogue.com/feed/rss',
+      'https://www.elle.com/rss/all.xml',
+      'https://www.harpersbazaar.com/rss/all.xml',
+      'https://www.highsnobiety.com/feed',
+      'https://footwearnews.com/feed',
+      'https://www.vogue.co.uk/feed/rss',
+    ],
+  },
+  {
+    name: 'Markets & Investing',
+    newsapiQuery: 'market growth investing finance stocks sectors',
+    feeds: [
+      'https://feeds.marketwatch.com/marketwatch/topstories/',
+      'https://feeds.bloomberg.com/markets/news.rss',
+      'https://www.ft.com/rss/home',
+    ],
+  },
+];
+
 // ─── Filter prompts (Haiku — binary SKIP/CARD gate) ───────────────────────────
 // These run on every article. Output is exactly "SKIP" or "CARD" — nothing else.
 // Insight extraction only runs on articles that return CARD.
@@ -839,17 +889,38 @@ function isRelevantToChannel(insight, title, channelName) {
 async function loadCustomChannels() {
   if (!supabase) return [];
   try {
+    const retiredNames = new Set(RETIRED_CHANNELS.map(r => r.name));
     const { data, error } = await supabase.from('profiles').select('channels');
     if (error || !data) return [];
     const custom = new Set();
     data.forEach(profile => {
       (profile.channels || []).forEach(ch => {
-        if (ch && !HARDCODED_CHANNELS.has(ch)) custom.add(ch);
+        if (ch && !HARDCODED_CHANNELS.has(ch) && !retiredNames.has(ch)) custom.add(ch);
       });
     });
     return Array.from(custom);
   } catch(e) {
     console.warn('Could not load custom channels:', e.message);
+    return [];
+  }
+}
+
+async function loadActiveRetiredChannels() {
+  if (!supabase || RETIRED_CHANNELS.length === 0) return [];
+  try {
+    const retiredNames = new Set(RETIRED_CHANNELS.map(r => r.name));
+    const { data, error } = await supabase.from('profiles').select('channels');
+    if (error || !data) return [];
+    const active = new Set();
+    data.forEach(profile => {
+      (profile.channels || []).forEach(ch => {
+        if (ch && retiredNames.has(ch)) active.add(ch);
+      });
+    });
+    const result = RETIRED_CHANNELS.filter(r => active.has(r.name));
+    return result;
+  } catch(e) {
+    console.warn('Could not load active retired channels:', e.message);
     return [];
   }
 }
@@ -917,12 +988,25 @@ async function run() {
   const seenUrls = await loadSeenUrls();
   console.log('Cross-run dedup: ' + seenUrls.size + ' URLs already seen.\n');
 
+  const activeRetiredChannels = await loadActiveRetiredChannels();
+  if (activeRetiredChannels.length > 0) {
+    console.log('Active retired channels: ' + activeRetiredChannels.map(r => r.name).join(', '));
+    activeRetiredChannels.forEach(r => {
+      HARDCODED_CHANNELS.add(r.name);
+      CHANNEL_NEWSAPI_QUERIES[r.name] = r.newsapiQuery;
+    });
+  } else {
+    console.log('No active retired channels.\n');
+  }
+
+  const allChannels = [...channels, ...activeRetiredChannels];
+
   const VERBOSE_CHANNELS = new Set(['Architecture', 'Arts & Culture']);
 
   // Phase 1: fetch all feeds and collect articles
   const queue = [];
   const seenFeedUrls = new Set();
-  for (const channel of channels) {
+  for (const channel of allChannels) {
     const verbose = VERBOSE_CHANNELS.has(channel.name);
     let channelNew = 0;
     for (const feedUrl of channel.feeds) {
@@ -962,7 +1046,7 @@ async function run() {
     console.log('\nNewsAPI supplement for hardcoded channels...');
     console.log('  key: ' + (NEWSAPI_KEY ? 'set (' + NEWSAPI_KEY.length + ' chars)' : 'NOT SET — will skip'));
     console.log('  from: ' + from10h + ' (10h window)');
-    for (const channel of channels) {
+    for (const channel of allChannels) {
       const query = CHANNEL_NEWSAPI_QUERIES[channel.name];
       if (!query) continue;
       const articles = await fetchNewsApiArticles(query, from10h);
@@ -1059,6 +1143,10 @@ async function run() {
   for (const channel of channels) {
     const lines = outputByChannel[channel.name];
     if (lines && lines.length) { output.push('\n=== ' + channel.name.toUpperCase() + ' ===\n', ...lines); }
+  }
+  for (const retiredCh of activeRetiredChannels) {
+    const lines = outputByChannel[retiredCh.name];
+    if (lines && lines.length) { output.push('\n=== ' + retiredCh.name.toUpperCase() + ' (retired) ===\n', ...lines); }
   }
   for (const channelName of customChannelNames) {
     const lines = outputByChannel[channelName];
