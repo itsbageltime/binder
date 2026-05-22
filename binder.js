@@ -35,6 +35,10 @@ const channels = [
       'https://www.architecturalrecord.com/rss/news.xml',
       'https://www.constructiondive.com/feeds/news/',
       'https://www.dezeen.com/news/feed/',
+      // Folded from Urban Development
+      'https://nextcity.org/all.rss',
+      'https://planetizen.com/frontpage/feed',
+      'https://www.strongtowns.org/journal?format=rss',
     ]
   },
   {
@@ -72,6 +76,27 @@ const channels = [
     ]
   },
   {
+    name: 'Science',
+    feeds: [
+      'https://www.quantamagazine.org/feed',
+      'https://www.newscientist.com/feed/home',
+      'https://www.sciencedaily.com/rss/all.xml',
+      'https://www.nature.com/nature.rss',
+      'https://www.science.org/rss/news_current.xml',
+      'https://www.popsci.com/feed',
+      'https://arstechnica.com/science/feed',
+      'https://www.livescience.com/feeds/all',
+      'https://nautil.us/feed',
+      'https://www.theguardian.com/science/rss',
+      'https://www.statnews.com/feed',
+      'https://www.sciencenews.org/feed',
+      'https://www.nasa.gov/rss/dyn/breaking_news.rss',
+      'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
+      'https://www.sciencealert.com/feed',
+      'https://www.universetoday.com/feed',
+    ]
+  },
+  {
     name: 'Energy & Climate',
     feeds: [
       'https://electrek.co/feed',
@@ -94,25 +119,7 @@ const channels = [
     ]
   },
   {
-    name: 'Urban Development',
-    feeds: [
-      'https://nextcity.org/feeds/features',
-      'https://nextcity.org/all.rss',
-      'https://planetizen.com/frontpage/feed',
-      'https://www.strongtowns.org/journal?format=rss',
-      'https://www.theurbanist.org/feed',
-      'https://www.smartcitiesdive.com/feeds/news',
-      'https://usa.streetsblog.org/feed',
-      'https://nyc.streetsblog.org/feed',
-      'https://sf.streetsblog.org/feed',
-      'https://la.streetsblog.org/feed',
-      'https://www.governing.com/rss',
-      'https://citymonitor.ai/feed',
-      'https://www.bloomberg.com/citylab/rss',
-    ]
-  },
-  {
-    name: 'Business & Startups',
+    name: 'Business',
     feeds: [
       'https://www.axios.com/feeds/feed.rss',
       'https://www.fastcompany.com/latest/rss',
@@ -128,24 +135,63 @@ const channels = [
     ]
   },
   {
-    name: 'Science',
+    name: 'Money',
     feeds: [
-      'https://www.quantamagazine.org/feed',
-      'https://www.newscientist.com/feed/home',
-      'https://www.sciencedaily.com/rss/all.xml',
-      'https://www.nature.com/nature.rss',
-      'https://www.science.org/rss/news_current.xml',
-      'https://www.popsci.com/feed',
-      'https://arstechnica.com/science/feed',
-      'https://www.livescience.com/feeds/all',
-      'https://nautil.us/feed',
-      'https://www.theguardian.com/science/rss',
+      'https://www.theguardian.com/money/rss',
+      'https://rss.nytimes.com/services/xml/rss/nyt/YourMoney.xml',
+      'https://feeds.bloomberg.com/markets/news.rss',
+      'https://www.ft.com/rss/home',
+      'https://www.economist.com/finance-and-economics/rss.xml',
+      'https://feeds.marketwatch.com/marketwatch/topstories/',
+    ]
+  },
+  {
+    name: 'Sports',
+    feeds: [
+      'https://www.espn.com/espn/rss/news',
+      'https://feeds.bbci.co.uk/sport/rss.xml',
+      'https://www.theguardian.com/sport/rss',
+      'https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml',
+      'https://www.sportingnews.com/us/rss',
+      'https://www.cbssports.com/rss/headlines',
+      'https://www.skysports.com/rss/12040',
+    ]
+  },
+  {
+    name: 'Health & Wellness',
+    feeds: [
+      'https://rss.nytimes.com/services/xml/rss/nyt/Health.xml',
+      'https://feeds.bbci.co.uk/news/health/rss.xml',
       'https://www.statnews.com/feed',
-      'https://www.sciencenews.org/feed',
-      'https://www.nasa.gov/rss/dyn/breaking_news.rss',
-      'https://rss.nytimes.com/services/xml/rss/nyt/Science.xml',
-      'https://www.sciencealert.com/feed',
-      'https://www.universetoday.com/feed',
+      'https://www.theguardian.com/society/rss',
+      'https://www.hsph.harvard.edu/news/feed/',
+    ]
+  },
+  {
+    name: 'Food & Drink',
+    feeds: [
+      'https://www.eater.com/rss/index.xml',
+      'https://www.bonappetit.com/feed/rss',
+      'https://www.theguardian.com/food/rss',
+      'https://www.epicurious.com/feed/rss',
+      'https://thetakeout.com/rss',
+      'https://www.tastingtable.com/rss',
+    ]
+  },
+  {
+    name: 'Film',
+    feeds: [
+      'https://deadline.com/feed',
+      'https://www.indiewire.com/feed',
+      'https://thefilmstage.com/feed',
+      'https://variety.com/v/film/feed',
+      'https://www.hollywoodreporter.com/c/movies/feed',
+      'https://www.rogerebert.com/feed',
+      'https://screenrant.com/feed',
+      'https://collider.com/feed',
+      'https://www.slashfilm.com/feed',
+      'https://lwlies.com/feed',
+      'https://filmcomment.com/feed',
     ]
   },
   {
@@ -169,42 +215,13 @@ const channels = [
     ]
   },
   {
-    name: 'Film',
+    name: 'Travel',
     feeds: [
-      'https://deadline.com/feed',
-      'https://www.indiewire.com/feed',
-      'https://thefilmstage.com/feed',
-      'https://variety.com/v/film/feed',
-      'https://www.hollywoodreporter.com/c/movies/feed',
-      'https://www.rogerebert.com/feed',
-      'https://screenrant.com/feed',
-      'https://collider.com/feed',
-      'https://www.slashfilm.com/feed',
-      'https://lwlies.com/feed',
-      'https://filmcomment.com/feed',
-    ]
-  },
-  {
-    name: 'Fashion',
-    feeds: [
-      'https://www.businessoffashion.com/feed',
-      'https://wwd.com/feed',
-      'https://hypebeast.com/feed',
-      'https://fashionista.com/feed',
-      'https://www.vogue.com/feed/rss',
-      'https://www.elle.com/rss/all.xml',
-      'https://www.harpersbazaar.com/rss/all.xml',
-      'https://www.highsnobiety.com/feed',
-      'https://footwearnews.com/feed',
-      'https://www.vogue.co.uk/feed/rss',
-    ]
-  },
-  {
-    name: 'Markets & Investing',
-    feeds: [
-      'https://feeds.marketwatch.com/marketwatch/topstories/',
-      'https://feeds.bloomberg.com/markets/news.rss',
-      'https://www.ft.com/rss/home',
+      'https://www.theguardian.com/travel/rss',
+      'https://www.cntraveler.com/feed/rss',
+      'https://rss.nytimes.com/services/xml/rss/nyt/Travel.xml',
+      'https://www.atlasobscura.com/feeds/latest',
+      'https://www.telegraph.co.uk/travel/rss.xml',
     ]
   },
   {
@@ -730,18 +747,20 @@ const HARDCODED_CHANNELS = new Set(channels.map(c => c.name));
 
 // ─── NewsAPI queries for hardcoded channels ───────────────────────────────────
 const CHANNEL_NEWSAPI_QUERIES = {
-  'Architecture':        'architecture building construction design urban development',
-  'Design':              'industrial design product design',
-  'Technology':          'technology AI software',
-  'Energy & Climate':    'energy climate renewable solar',
-  'Urban Development':   'urban housing city transit planning zoning policy',
-  'Business & Startups': 'startup business funding',
-  'Science':             'science research discovery',
-  'Arts & Culture':      'art culture museum exhibition music gallery',
-  'Film':                'film cinema movie',
-  'Fashion':             'fashion design style',
-  'Politics & World':    'politics world news',
-  'Markets & Investing': 'market growth investing finance stocks sectors',
+  'Architecture':      'architecture building construction design urban',
+  'Design':            'industrial design product design',
+  'Technology':        'technology AI software',
+  'Science':           'science research discovery',
+  'Energy & Climate':  'energy climate renewable solar',
+  'Business':          'startup business funding company',
+  'Money':             'personal finance investing markets savings economy cost',
+  'Sports':            'sports athlete game championship tournament',
+  'Health & Wellness': 'health medicine wellness fitness mental health',
+  'Food & Drink':      'food cooking restaurant chef cuisine',
+  'Film':              'film cinema movie',
+  'Arts & Culture':    'art culture museum exhibition music gallery',
+  'Travel':            'travel destination tourism adventure journey',
+  'Politics & World':  'politics world news',
 };
 
 // ─── Custom channel query expansion ──────────────────────────────────────────
@@ -793,9 +812,11 @@ function expandChannelQuery(channelName) {
 // Terms required in insight+title for hardcoded channels that often get noise.
 // Custom channels use their own words as the filter.
 const CHANNEL_RELEVANCE_TERMS = {
-  'Film': ['film', 'movie', 'cinema', 'director', 'actor', 'actress', 'oscar', 'hollywood', 'documentary', 'streaming', 'series', 'television', 'screen', 'box office', 'premiere', 'sequel', 'studio'],
-  'Fashion': ['fashion', 'clothing', 'apparel', 'designer', 'brand', 'collection', 'runway', 'style', 'wear', 'fabric', 'textile', 'luxury', 'couture', 'dress', 'garment'],
-  'Arts & Culture': ['art', 'museum', 'gallery', 'exhibition', 'artist', 'culture', 'performance', 'theatre', 'theater', 'dance', 'sculpture', 'painting', 'curator', 'concert'],
+  'Film':              ['film', 'movie', 'cinema', 'director', 'actor', 'actress', 'oscar', 'hollywood', 'documentary', 'streaming', 'series', 'television', 'screen', 'box office', 'premiere', 'sequel', 'studio'],
+  'Arts & Culture':   ['art', 'museum', 'gallery', 'exhibition', 'artist', 'culture', 'performance', 'theatre', 'theater', 'dance', 'sculpture', 'painting', 'curator', 'concert', 'book', 'music', 'literary'],
+  'Sports':           ['sport', 'game', 'match', 'player', 'team', 'league', 'championship', 'tournament', 'athlete', 'coach', 'season', 'score', 'win', 'loss', 'draft', 'transfer', 'stadium', 'nfl', 'nba', 'nhl', 'mlb', 'fifa', 'olympic'],
+  'Food & Drink':     ['food', 'restaurant', 'chef', 'cook', 'recipe', 'cuisine', 'dining', 'drink', 'coffee', 'wine', 'beer', 'cocktail', 'ingredient', 'meal', 'kitchen', 'bakery', 'farm', 'grocery'],
+  'Travel':           ['travel', 'destination', 'trip', 'journey', 'hotel', 'flight', 'airport', 'tourist', 'tourism', 'vacation', 'adventure', 'itinerary', 'passport', 'visa', 'airline'],
 };
 
 function isRelevantToChannel(insight, title, channelName) {
@@ -896,7 +917,7 @@ async function run() {
   const seenUrls = await loadSeenUrls();
   console.log('Cross-run dedup: ' + seenUrls.size + ' URLs already seen.\n');
 
-  const VERBOSE_CHANNELS = new Set(['Architecture', 'Urban Development', 'Arts & Culture']);
+  const VERBOSE_CHANNELS = new Set(['Architecture', 'Arts & Culture']);
 
   // Phase 1: fetch all feeds and collect articles
   const queue = [];

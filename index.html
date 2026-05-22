@@ -612,15 +612,17 @@ var CHANNEL_DEFS=[
   {name:'Architecture',desc:'Buildings, spaces, and the people who design them'},
   {name:'Design',desc:'Objects, systems, and visual culture'},
   {name:'Technology',desc:'What\'s being built and what it means'},
-  {name:'Energy & Climate',desc:'The energy transition and its consequences'},
-  {name:'Urban Development',desc:'How cities grow, change, and fail'},
-  {name:'Business & Startups',desc:'Companies, capital, and the economy'},
   {name:'Science',desc:'Discoveries, research, and how we understand the world'},
-  {name:'Arts & Culture',desc:'Art, music, film, and creative life'},
+  {name:'Energy & Climate',desc:'The energy transition and its consequences'},
+  {name:'Business',desc:'Companies, capital, and the economy'},
+  {name:'Money',desc:'Markets, saving, and the cost of living'},
+  {name:'Sports',desc:'The games, the athletes, and the stakes'},
+  {name:'Health & Wellness',desc:'The body, the mind, and how we stay well'},
+  {name:'Food & Drink',desc:'Cooking, restaurants, and how we eat'},
   {name:'Film',desc:'Cinema, the industry, and screen culture'},
-  {name:'Fashion',desc:'Style, the industry, and what we wear'},
-  {name:'Politics & World',desc:'Power, policy, and global affairs'},
-  {name:'Markets & Investing',desc:'Market trends, sector growth, and investment signals.'}
+  {name:'Arts & Culture',desc:'Art, music, books, and creative life'},
+  {name:'Travel',desc:'Places, journeys, and the world worth seeing'},
+  {name:'Politics & World',desc:'Power, policy, and global affairs'}
 ];
 
 var selectedChannelTiles=new Set();
@@ -680,9 +682,11 @@ function normalizeCard(c){
 
 var CHANNEL_COLORS={
   'Architecture':'#64748b','Design':'#4ade80','Technology':'#3b82f6',
-  'Energy & Climate':'#f59e0b','Urban Development':'#6b7280',
-  'Business & Startups':'#8b5cf6','Science':'#14b8a6',
-  'Arts & Culture':'#ec4899','Film':'#991b1b','Fashion':'#a8a29e',
+  'Science':'#14b8a6','Energy & Climate':'#f59e0b',
+  'Business':'#8b5cf6','Money':'#10b981',
+  'Sports':'#f97316','Health & Wellness':'#06b6d4',
+  'Food & Drink':'#eab308','Film':'#991b1b',
+  'Arts & Culture':'#ec4899','Travel':'#6366f1',
   'Politics & World':'#f87171'
 };
 
