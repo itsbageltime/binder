@@ -13,7 +13,7 @@
   "crons": [
     {
       "path": "/api/trigger-pipeline",
-      "schedule": "30 11 * * *"
+      "schedule": "45 8 * * *"
     }
   ]
 }
